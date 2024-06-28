@@ -9,7 +9,7 @@ app.use(cors());
 const server = http.createServer(app);
 const io = socketIo(server, {
   cors: {
-    origin: "http://localhost:8080", // Allow your Vue app's origin
+    origin: "*", // Allow your Vue app's origin
     methods: ["GET", "POST"]
   }
 });
@@ -40,4 +40,4 @@ io.on('connection', (socket) => {
   });
 });
 
-server.listen(PORT, () => console.log(`Signaling server running on port ${PORT}`));
+server.listen(3001, '0.0.0.0', () => console.log('Server running on port 3001'));
