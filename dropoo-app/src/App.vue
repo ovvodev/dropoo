@@ -11,8 +11,8 @@
       <h2>Connected Peers</h2>
       <ul>
         <li v-for="peer in peers" :key="peer.id">
-          {{ peer.id }}
-          <button @click="sendFileToPeer(peer)" :disabled="!selectedFiles.length">
+          {{ peer.name }}
+          <button v-if="!peer.name.startsWith('Me')" @click="sendFileToPeer(peer)" :disabled="!selectedFiles.length">
             Send Files
           </button>
         </li>
@@ -82,6 +82,17 @@ export default {
     }
   },
   methods: {
+    addPeer(peer) {
+      console.log("Adding peer:", peer)
+      const existingPeerIndex = this.peers.findIndex(p => p.id === peer.id)
+      if (existingPeerIndex !== -1) {
+        // Update existing peer
+        this.$set(this.peers, existingPeerIndex, peer)
+      } else {
+        // Add new peer
+        this.peers.push(peer)
+      }
+    },
     onFileSelected(event) {
       this.selectedFiles = Array.from(event.target.files)
     },
@@ -133,11 +144,7 @@ export default {
       this.transfers = this.transfers.filter(t => !(t.peerId === peerId && t.fileName === fileName))
       alert(`Transfer of ${fileName} with peer ${peerId} was cancelled: ${reason}`)
     },
-    addPeer(peer) {
-      if (!this.peers.some(p => p.id === peer.id)) {
-        this.peers.push(peer)
-      }
-    },
+    
     removePeer(peerId) {
       this.peers = this.peers.filter(p => p.id !== peerId)
       this.transfers = this.transfers.filter(t => t.peerId !== peerId)

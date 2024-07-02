@@ -2,6 +2,7 @@
 
 import io from 'socket.io-client'
 import Peer from 'simple-peer'
+import UAParser from 'ua-parser-js'
 
 class PeerService {
   constructor() {
@@ -16,6 +17,24 @@ class PeerService {
     this.onTransferCancelled = null
     this.activeTransfers = new Map()
     this.pausedTransfers = new Set()
+    this.deviceInfo = this.getDeviceInfo()
+    this.myPeerId = null
+    console.log("Device info:", this.deviceInfo)
+  }
+
+  getDeviceInfo() {
+    const parser = new UAParser()
+    const result = parser.getResult()
+    return {
+      os: result.os.name || 'Unknown OS',
+      type: result.device.type || 'Desktop',
+      model: result.device.model || '',
+      browser: result.browser.name || 'Unknown Browser'
+    }
+  }
+
+  formatPeerName(deviceInfo) {
+    return `${deviceInfo.os} ${deviceInfo.type} (${deviceInfo.browser})`
   }
 
   init() {
@@ -24,27 +43,21 @@ class PeerService {
 
     this.socket.on('connect', () => {
       console.log('Connected to signaling server with ID:', this.socket.id)
-    })
-    this.socket.on('connect_error', (error) => {
-      console.error('Failed to connect to signaling server:', error)
-      // Handle the error, maybe retry connection or notify the user
-    })
-    this.socket.on('disconnect', (reason) => {
-      console.log('Disconnected from signaling server:', reason)
-      if (reason === 'io server disconnect') {
-        // The disconnection was initiated by the server, you need to reconnect manually
-        this.socket.connect()
+      this.myPeerId = this.socket.id
+      this.socket.emit('register', this.deviceInfo)
+      if (this.onPeerConnected) {
+        this.onPeerConnected({ id: this.myPeerId, name: `Me (${this.formatPeerName(this.deviceInfo)})` })
       }
-      // else the socket will automatically try to reconnect
-    })
-    this.socket.on('peers', (peerIds) => {
-      console.log('Received list of peers:', peerIds)
-      peerIds.forEach(peerId => this.createPeer(peerId, true))
     })
 
-    this.socket.on('peer-joined', (peerId) => {
-      console.log('New peer joined:', peerId)
-      this.createPeer(peerId, false)
+    this.socket.on('peers', (peerList) => {
+      console.log('Received list of peers:', peerList)
+      peerList.forEach(peer => this.createPeer(peer.id, true, peer.deviceInfo))
+    })
+
+    this.socket.on('peer-joined', (peer) => {
+      console.log('New peer joined:', peer)
+      this.createPeer(peer.id, false, peer.deviceInfo)
     })
 
     this.socket.on('peer-left', (peerId) => {
@@ -65,7 +78,7 @@ class PeerService {
     })
   }
 
-  createPeer(peerId, initiator) {
+  createPeer(peerId, initiator, deviceInfo) {
     if (this.peers[peerId]) {
       console.log('Peer already exists:', peerId)
       return
@@ -81,7 +94,9 @@ class PeerService {
     peer.on('connect', () => {
       console.log('Connected to peer:', peerId)
       if (this.onPeerConnected) {
-        this.onPeerConnected({ id: peerId })
+        const peerName = peerId === this.myPeerId ? `Me (${this.formatPeerName(this.deviceInfo)})` : this.formatPeerName(deviceInfo)
+        console.log("Setting peer name:", peerName)
+        this.onPeerConnected({ id: peerId, name: peerName })
       }
     })
     
@@ -96,6 +111,7 @@ class PeerService {
 
     this.peers[peerId] = peer
   }
+
 
   handleIncomingData(peerId, data) {
     try {
@@ -158,19 +174,16 @@ class PeerService {
     if (this.onPeerDisconnected) {
       this.onPeerDisconnected(peerId)
     }
-    // Clean up any ongoing transfers with this peer
     this.cleanupTransfers(peerId)
   }
   
   cleanupTransfers(peerId) {
-    // Remove any active transfers with this peer
     for (let [transferId] of this.activeTransfers) {
       if (transferId.startsWith(peerId)) {
         this.cancelTransfer(transferId)
       }
     }
     
-    // Remove any incoming files from this peer
     for (let transferId in this.incomingFiles) {
       if (this.incomingFiles[transferId].peerId === peerId) {
         delete this.incomingFiles[transferId]
@@ -190,7 +203,7 @@ class PeerService {
     }
 
     const transferId = `${peerId}-${file.name}-${Date.now()}`
-    const chunkSize = 16 * 1024 // 16 KB chunks
+    const chunkSize = 16 * 1024
     const fileReader = new FileReader()
     let offset = 0
     let cancelled = false
@@ -229,7 +242,7 @@ class PeerService {
         return
       }
       if (this.pausedTransfers.has(transferId)) {
-        return // Don't proceed if transfer is paused
+        return
       }
       try {
         const chunk = e.target.result
