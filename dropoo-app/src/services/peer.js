@@ -191,18 +191,18 @@ class PeerService {
     }
   }
   
-  sendFile(peerId, file) {
+  sendFile(peerId, file, filePath) {
     const peer = this.peers[peerId]
     if (!peer) {
-      this.handleError(peerId, file.name, 'Peer not found')
+      this.handleError(peerId, filePath, 'Peer not found')
       return
     }
     if (!file || file.size === 0) {
-      this.handleError(peerId, file ? file.name : 'Unknown', 'File is empty or invalid')
+      this.handleError(peerId, filePath || 'Unknown', 'File is empty or invalid')
       return
     }
 
-    const transferId = `${peerId}-${file.name}-${Date.now()}`
+    const transferId = `${peerId}-${filePath}-${Date.now()}`
     const chunkSize = 16 * 1024
     const fileReader = new FileReader()
     let offset = 0
@@ -222,7 +222,7 @@ class PeerService {
     peer.send(JSON.stringify({ 
       type: 'file-start', 
       transferId,
-      fileName: file.name,
+      fileName: filePath,
       fileSize: file.size,
       fileType: file.type
     }))

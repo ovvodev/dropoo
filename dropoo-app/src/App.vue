@@ -2,7 +2,15 @@
   <div id="app">
     <h1>Dropoo</h1>
     <div>
-      <input type="file" @change="debouncedOnFileSelected" multiple>
+      <input 
+        type="file" 
+        ref="fileInput"
+        @change="onItemsSelected" 
+        multiple
+        webkitdirectory
+        style="display: none"
+      >
+      <button @click="triggerFileInput">Select Files or Folders</button>
       <button @click="sendFileToAllPeers" :disabled="!selectedFiles.length || !peers.length">
         Send to All Peers
       </button>
@@ -54,7 +62,6 @@
 
 <script>
 import PeerService from './services/peer'
-import { debounce } from 'lodash'
 
 export default {
   name: 'App',
@@ -93,22 +100,26 @@ export default {
         this.peers.push(peer)
       }
     },
-    onFileSelected(event) {
-      this.selectedFiles = Array.from(event.target.files)
+    triggerFileInput() {
+      this.$refs.fileInput.click();
     },
-    debouncedOnFileSelected: debounce(function(event) {
-      this.onFileSelected(event)
-    }, 300),
+    onItemsSelected(event) {
+      const files = Array.from(event.target.files);
+      this.selectedFiles = files.map(file => ({
+        file,
+        path: file.webkitRelativePath || file.name
+      }));
+    },
     sendFileToAllPeers() {
       this.peers.forEach(peer => this.sendFileToPeer(peer))
     },
     sendFileToPeer(peer) {
-      this.selectedFiles.forEach(file => {
-        const transferId = PeerService.sendFile(peer.id, file)
+      this.selectedFiles.forEach(item => {
+        const transferId = PeerService.sendFile(peer.id, item.file, item.path)
         this.transfers.push({ 
           id: transferId,
           peerId: peer.id, 
-          fileName: file.name, 
+          fileName: item.path, 
           progress: 0, 
           incoming: false,
           paused: false
