@@ -2,10 +2,10 @@
   <div id="app">
     <h1>Dropoo</h1>
     <div>
-      <input 
-        type="file" 
+      <input
+        type="file"
         ref="fileInput"
-        @change="onItemsSelected" 
+        @change="onItemsSelected"
         multiple
         webkitdirectory
         style="display: none"
@@ -16,26 +16,29 @@
       </button>
     </div>
     <div>
-      <h2>Connected Peers</h2>
+      <h2>Connected Peers and Transfers</h2>
       <ul>
         <li v-for="peer in peers" :key="peer.id">
-          {{ peer.name }}
-          <button v-if="!peer.name.startsWith('Me')" @click="sendFileToPeer(peer)" :disabled="!selectedFiles.length">
-            Send Files
-          </button>
-        </li>
-      </ul>
-    </div>
-    <div v-if="transfers.length">
-      <h2>File Transfers</h2>
-      <ul>
-        <li v-for="transfer in transfers" :key="transfer.id">
-          {{ transfer.fileName }} {{ transfer.incoming ? 'from' : 'to' }} {{ transfer.peerId }} - {{ transfer.progress.toFixed(2) }}%
-          <progress :value="transfer.progress" max="100"></progress>
-          <button @click="cancelTransfer(transfer)">Cancel</button>
-          <button v-if="!transfer.incoming" @click="togglePauseTransfer(transfer)">
-            {{ transfer.paused ? 'Resume' : 'Pause' }}
-          </button>
+          <div>
+            <strong>{{ peer.name }}</strong>
+            <button 
+              v-if="!peer.name.startsWith('Me')" 
+              @click="sendFileToPeer(peer)" 
+              :disabled="!selectedFiles.length"
+            >
+              Send Files
+            </button>
+          </div>
+          <ul v-if="getTransfersForPeer(peer.id).length">
+            <li v-for="transfer in getTransfersForPeer(peer.id)" :key="transfer.id">
+              {{ transfer.fileName }} - {{ transfer.progress.toFixed(2) }}%
+              <progress :value="transfer.progress" max="100"></progress>
+              <button @click="cancelTransfer(transfer)">Cancel</button>
+              <button v-if="!transfer.incoming" @click="togglePauseTransfer(transfer)">
+                {{ transfer.paused ? 'Resume' : 'Pause' }}
+              </button>
+            </li>
+          </ul>
         </li>
       </ul>
     </div>
@@ -43,17 +46,16 @@
       <h2>Received Files</h2>
       <ul>
         <li v-for="file in receivedFiles" :key="`${file.peerId}-${file.fileName}`">
-          {{ file.fileName }} from {{ file.peerId }} ({{ formatFileSize(file.size) }})
+          {{ file.fileName }} from {{ getPeerName(file.peerId) }} ({{ formatFileSize(file.size) }})
           <a :href="file.url" :download="file.fileName">Download</a>
         </li>
       </ul>
     </div>
-
     <div v-if="errors.length">
       <h2>Errors</h2>
       <ul>
         <li v-for="error in errors" :key="`${error.peerId}-${error.fileName}`">
-          Error transferring {{ error.fileName }} with peer {{ error.peerId }}: {{ error.message }}
+          Error transferring {{ error.fileName }} with peer {{ getPeerName(error.peerId) }}: {{ error.message }}
           <button @click="retryTransfer(error)">Retry</button>
         </li>
       </ul>
@@ -100,6 +102,14 @@ export default {
         // Add new peer
         this.peers.push(peer)
       }
+    },
+    getTransfersForPeer(peerId) {
+      return this.transfers.filter(transfer => transfer.peerId === peerId);
+    },
+
+    getPeerName(peerId) {
+      const peer = this.peers.find(p => p.id === peerId);
+      return peer ? peer.name : 'Unknown Peer';
     },
     triggerFileInput() {
       this.$refs.fileInput.click();
