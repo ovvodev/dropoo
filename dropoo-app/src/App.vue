@@ -48,6 +48,7 @@
         </li>
       </ul>
     </div>
+
     <div v-if="errors.length">
       <h2>Errors</h2>
       <ul>
@@ -167,8 +168,14 @@ export default {
       }
     },
     addReceivedFile(peerId, fileName, url, size) {
-      this.receivedFiles.push({ peerId, fileName, url, size })
-      this.transfers = this.transfers.filter(t => !(t.peerId === peerId && t.fileName === fileName))
+      this.receivedFiles.push({ peerId, fileName, url, size });
+      // Remove any related transfers
+      this.transfers = this.transfers.filter(t => {
+        if (fileName.endsWith('.zip')) {
+          return !(t.peerId === peerId && t.fileName.startsWith(fileName.slice(0, -4)));
+        }
+        return !(t.peerId === peerId && t.fileName === fileName);
+      });
     },
     formatFileSize(bytes) {
       const units = ['bytes', 'KB', 'MB', 'GB']

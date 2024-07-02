@@ -3,6 +3,7 @@
 import io from 'socket.io-client'
 import Peer from 'simple-peer'
 import UAParser from 'ua-parser-js'
+import JSZip from 'jszip'
 
 class PeerService {
   constructor() {
@@ -19,6 +20,7 @@ class PeerService {
     this.pausedTransfers = new Set()
     this.deviceInfo = this.getDeviceInfo()
     this.myPeerId = null
+    this.incomingFolders = {}
     console.log("Device info:", this.deviceInfo)
   }
 
@@ -116,9 +118,25 @@ class PeerService {
   handleIncomingData(peerId, data) {
     try {
       const parsedData = JSON.parse(data.toString())
-      
       switch(parsedData.type) {
-        case 'file-start':
+        case 'file-start': {
+          const folderPath = parsedData.fileName.split('/').slice(0, -1).join('/')
+          if (folderPath) {
+            if (!this.incomingFolders[folderPath]) {
+              this.incomingFolders[folderPath] = {
+                peerId,
+                files: {},
+                totalSize: 0,
+                receivedSize: 0
+              }
+            }
+            this.incomingFolders[folderPath].files[parsedData.fileName] = {
+              size: parsedData.fileSize,
+              type: parsedData.fileType,
+              chunks: []
+            };
+            this.incomingFolders[folderPath].totalSize += parsedData.fileSize;
+          }
           this.incomingFiles[parsedData.transferId] = {
             peerId,
             fileName: parsedData.fileName,
@@ -127,34 +145,47 @@ class PeerService {
             chunks: []
           }
           break
-        
-        case 'file-chunk':
+        }
+        case 'file-chunk': {
           if (this.incomingFiles[parsedData.transferId]) {
             this.incomingFiles[parsedData.transferId].chunks.push(new Uint8Array(parsedData.data))
             const receivedSize = this.incomingFiles[parsedData.transferId].chunks.reduce((total, chunk) => total + chunk.length, 0)
             const progress = (receivedSize / this.incomingFiles[parsedData.transferId].fileSize) * 100
-            
-            if (this.onFileProgress) {
+            const folderPath = parsedData.fileName.split('/').slice(0, -1).join('/')
+            if (folderPath && this.incomingFolders[folderPath]) {
+              this.incomingFolders[folderPath].receivedSize += parsedData.data.length
+              const folderProgress = (this.incomingFolders[folderPath].receivedSize / this.incomingFolders[folderPath].totalSize) * 100
+              if (this.onFileProgress) {
+                this.onFileProgress(peerId, folderPath, folderProgress)
+              }
+            } else if (this.onFileProgress) {
               this.onFileProgress(peerId, parsedData.fileName, progress)
             }
           }
           break
-        
-        case 'file-end':
+        }
+        case 'file-end': {
           if (this.incomingFiles[parsedData.transferId]) {
             const file = this.incomingFiles[parsedData.transferId]
             const blob = new Blob(file.chunks, { type: file.fileType })
-            const url = URL.createObjectURL(blob)
-            
-            if (this.onFileReceived) {
-              this.onFileReceived(peerId, file.fileName, url, blob.size)
+            const folderPath = file.fileName.split('/').slice(0, -1).join('/')
+            if (folderPath && this.incomingFolders[folderPath]) {
+              this.incomingFolders[folderPath].files[file.fileName].blob = blob
+              const allFilesReceived = Object.values(this.incomingFolders[folderPath].files).every(f => f.blob)
+              if (allFilesReceived) {
+                this.createAndSendZipFolder(folderPath, peerId)
+              }
+            } else {
+              const url = URL.createObjectURL(blob)
+              if (this.onFileReceived) {
+                this.onFileReceived(peerId, file.fileName, url, blob.size)
+              }
             }
-            
             delete this.incomingFiles[parsedData.transferId]
           }
           break
-  
-        case 'file-cancel':
+        }
+        case 'file-cancel': {
           if (this.incomingFiles[parsedData.transferId]) {
             delete this.incomingFiles[parsedData.transferId]
             if (this.onTransferCancelled) {
@@ -162,10 +193,29 @@ class PeerService {
             }
           }
           break
+        }
       }
     } catch (error) {
       this.handleError(peerId, 'Unknown', 'Error processing incoming data')
     }
+  }
+
+  async createAndSendZipFolder(folderPath, peerId) {
+    const zip = new JSZip();
+    const folder = this.incomingFolders[folderPath];
+
+    for (const [fileName, fileData] of Object.entries(folder.files)) {
+      zip.file(fileName.replace(folderPath + '/', ''), fileData.blob);
+    }
+
+    const zipBlob = await zip.generateAsync({type: 'blob'});
+    const url = URL.createObjectURL(zipBlob);
+
+    if (this.onFileReceived) {
+      this.onFileReceived(peerId, `${folderPath}.zip`, url, zipBlob.size);
+    }
+
+    delete this.incomingFolders[folderPath];
   }
   
   handlePeerDisconnection(peerId) {
