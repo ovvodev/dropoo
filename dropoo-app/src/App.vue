@@ -2,7 +2,7 @@
   <div id="app">
     <h1>Dropoo</h1>
     <div>
-      <input type="file" @change="onFileSelected" multiple>
+      <input type="file" @change="debouncedOnFileSelected" multiple>
       <button @click="sendFileToAllPeers" :disabled="!selectedFiles.length || !peers.length">
         Send to All Peers
       </button>
@@ -54,6 +54,7 @@
 
 <script>
 import PeerService from './services/peer'
+import { debounce } from 'lodash'
 
 export default {
   name: 'App',
@@ -68,18 +69,25 @@ export default {
   },
   mounted() {
     console.log('App mounted, initializing PeerService')
-    PeerService.init()
-    PeerService.onPeerConnected = this.addPeer
-    PeerService.onPeerDisconnected = this.handlePeerDisconnected
-    PeerService.onFileProgress = this.updateFileProgress
-    PeerService.onFileReceived = this.addReceivedFile
-    PeerService.onTransferError = this.handleTransferError
-    PeerService.onTransferCancelled = this.handleTransferCancelled
+    try {
+      PeerService.init()
+      PeerService.onPeerConnected = this.addPeer
+      PeerService.onPeerDisconnected = this.handlePeerDisconnected
+      PeerService.onFileProgress = this.updateFileProgress
+      PeerService.onFileReceived = this.addReceivedFile
+      PeerService.onTransferError = this.handleTransferError
+      PeerService.onTransferCancelled = this.handleTransferCancelled
+    } catch (error) {
+      console.error('Error initializing PeerService:', error)
+    }
   },
   methods: {
     onFileSelected(event) {
       this.selectedFiles = Array.from(event.target.files)
     },
+    debouncedOnFileSelected: debounce(function(event) {
+      this.onFileSelected(event)
+    }, 300),
     sendFileToAllPeers() {
       this.peers.forEach(peer => this.sendFileToPeer(peer))
     },
@@ -97,20 +105,15 @@ export default {
       })
     },
     handlePeerDisconnected(peerId) {
-      // Remove the peer from the list of connected peers
       this.peers = this.peers.filter(peer => peer.id !== peerId)
-
-      // Update any ongoing transfers
       this.transfers = this.transfers.filter(transfer => {
         if (transfer.peerId === peerId) {
-          // Notify the user that the transfer was interrupted
           this.$toast.error(`Transfer of ${transfer.fileName} interrupted: Peer disconnected`)
           return false
         }
         return true
       })
     },
-
     togglePauseTransfer(transfer) {
       if (transfer.paused) {
         PeerService.resumeTransfer(transfer.id)
@@ -145,24 +148,24 @@ export default {
         transfer.progress = progress
       }
     },
-
     addReceivedFile(peerId, fileName, url, size) {
       this.receivedFiles.push({ peerId, fileName, url, size })
-      // Remove the transfer from the list
       this.transfers = this.transfers.filter(t => !(t.peerId === peerId && t.fileName === fileName))
     },
     formatFileSize(bytes) {
-      if (bytes < 1024) return bytes + ' bytes'
-      else if (bytes < 1048576) return (bytes / 1024).toFixed(2) + ' KB'
-      else if (bytes < 1073741824) return (bytes / 1048576).toFixed(2) + ' MB'
-      else return (bytes / 1073741824).toFixed(2) + ' GB'
+      const units = ['bytes', 'KB', 'MB', 'GB']
+      let unitIndex = 0
+      let size = bytes
+      while (size >= 1024 && unitIndex < units.length - 1) {
+        size /= 1024
+        unitIndex++
+      }
+      return `${size.toFixed(2)} ${units[unitIndex]}`
     },
     handleTransferError(peerId, fileName, message) {
       this.errors.push({ peerId, fileName, message })
-      // Remove the failed transfer from the transfers list
       this.transfers = this.transfers.filter(t => !(t.peerId === peerId && t.fileName === fileName))
     },
-
     retryTransfer(error) {
       const file = this.selectedFiles.find(f => f.name === error.fileName)
       if (file) {
@@ -176,7 +179,6 @@ export default {
   }
 }
 </script>
-
 
 <style>
 #app {

@@ -3,7 +3,6 @@
 import io from 'socket.io-client'
 import Peer from 'simple-peer'
 
-
 class PeerService {
   constructor() {
     this.socket = null
@@ -30,7 +29,6 @@ class PeerService {
       console.error('Failed to connect to signaling server:', error)
       // Handle the error, maybe retry connection or notify the user
     })
-  
     this.socket.on('disconnect', (reason) => {
       console.log('Disconnected from signaling server:', reason)
       if (reason === 'io server disconnect') {
@@ -163,10 +161,10 @@ class PeerService {
     // Clean up any ongoing transfers with this peer
     this.cleanupTransfers(peerId)
   }
+  
   cleanupTransfers(peerId) {
     // Remove any active transfers with this peer
-    // eslint-disable-next-line no-unused-vars
-    for (let [transferId, _] of this.activeTransfers) {
+    for (let [transferId] of this.activeTransfers) {
       if (transferId.startsWith(peerId)) {
         this.cancelTransfer(transferId)
       }
@@ -197,17 +195,16 @@ class PeerService {
     let offset = 0
     let cancelled = false
 
-  // eslint-disable-next-line no-unused-vars
-  const transfer = {
-    cancel: () => { cancelled = true },
-    pause: () => { this.pausedTransfers.add(transferId) },
-    resume: () => { 
-      this.pausedTransfers.delete(transferId)
-      if (!cancelled) readNextChunk()
+    const transfer = {
+      cancel: () => { cancelled = true },
+      pause: () => { this.pausedTransfers.add(transferId) },
+      resume: () => { 
+        this.pausedTransfers.delete(transferId)
+        if (!cancelled) readNextChunk()
+      }
     }
-  }
 
-  this.activeTransfers.set(transferId, transfer)
+    this.activeTransfers.set(transferId, transfer)
 
     peer.send(JSON.stringify({ 
       type: 'file-start', 
@@ -274,6 +271,7 @@ class PeerService {
     readNextChunk()
     return transferId
   }
+
   pauseTransfer(transferId) {
     const transfer = this.activeTransfers.get(transferId)
     if (transfer) {
@@ -295,7 +293,6 @@ class PeerService {
       this.activeTransfers.delete(transferId)
     }
   }
-  
 
   handleError(peerId, fileName, message) {
     console.error(`Error in transfer with peer ${peerId} for file ${fileName}: ${message}`)
