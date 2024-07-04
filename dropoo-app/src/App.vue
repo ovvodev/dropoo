@@ -1,67 +1,94 @@
 <template>
-  <div id="app">
-    <h1>Dropoo</h1>
-    <div>
-      <input
-        type="file"
-        ref="fileInput"
-        @change="onItemsSelected"
-        multiple
-        webkitdirectory
-        style="display: none"
-      >
-      <button @click="triggerFileInput">Select Files or Folders</button>
-      <button @click="sendFileToAllPeers" :disabled="!selectedFiles.length || !peers.length">
-        Send to All Peers
-      </button>
-    </div>
-    <div>
-      <h2>Connected Peers and Transfers</h2>
-      <ul>
-        <li v-for="peer in peers" :key="peer.id">
-          <div>
-            <strong>{{ peer.name }}</strong>
-            <button 
-              v-if="!peer.name.startsWith('Me')" 
-              @click="sendFileToPeer(peer)" 
-              :disabled="!selectedFiles.length"
-            >
-              Send Files
-            </button>
-          </div>
-          <ul v-if="getTransfersForPeer(peer.id).length">
-            <li v-for="transfer in getTransfersForPeer(peer.id)" :key="transfer.id">
-              {{ transfer.fileName }} - {{ transfer.progress.toFixed(2) }}%
-              <progress :value="transfer.progress" max="100"></progress>
-              <button @click="cancelTransfer(transfer)">Cancel</button>
-              <button v-if="!transfer.incoming" @click="togglePauseTransfer(transfer)">
-                {{ transfer.paused ? 'Resume' : 'Pause' }}
-              </button>
+  <div class="min-h-screen bg-gray-100 py-6 flex flex-col justify-center sm:py-12">
+    <div class="relative py-3 sm:max-w-xl sm:mx-auto">
+      <div class="relative px-4 py-10 bg-white shadow-lg sm:rounded-3xl sm:p-20">
+        <h1 class="text-2xl font-semibold mb-5">Dropoo</h1>
+        
+        <!-- File selection -->
+        <div class="mb-5">
+          <input
+            type="file"
+            ref="fileInput"
+            @change="onItemsSelected"
+            multiple
+            webkitdirectory
+            class="hidden"
+          >
+          <button 
+            @click="triggerFileInput"
+            class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded mr-2"
+          >
+            Select Files or Folders
+          </button>
+          <button 
+            @click="sendFileToAllPeers" 
+            :disabled="!selectedFiles.length || !peers.length"
+            class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded disabled:opacity-50"
+          >
+            Send to All Peers
+          </button>
+        </div>
+
+        <!-- Connected Peers and Transfers -->
+        <div class="mb-5">
+          <h2 class="text-xl font-semibold mb-3">Connected Peers and Transfers</h2>
+          <ul class="space-y-4">
+            <li v-for="peer in peers" :key="peer.id" class="border p-4 rounded">
+              <div class="flex justify-between items-center">
+                <strong>{{ peer.name }}</strong>
+                <button 
+                  v-if="!peer.name.startsWith('Me')" 
+                  @click="sendFileToPeer(peer)" 
+                  :disabled="!selectedFiles.length"
+                  class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-2 rounded text-sm disabled:opacity-50"
+                >
+                  Send Files
+                </button>
+              </div>
+              <ul v-if="getTransfersForPeer(peer.id).length" class="mt-2 space-y-2">
+                <li v-for="transfer in getTransfersForPeer(peer.id)" :key="transfer.id" class="text-sm">
+                  <div class="flex items-center">
+                    <span class="mr-2">{{ transfer.fileName }} - {{ transfer.progress.toFixed(2) }}%</span>
+                    <progress :value="transfer.progress" max="100" class="w-1/3"></progress>
+                  </div>
+                  <div class="mt-1">
+                    <button @click="cancelTransfer(transfer)" class="text-red-500 hover:text-red-700 mr-2">Cancel</button>
+                    <button v-if="!transfer.incoming" @click="togglePauseTransfer(transfer)" class="text-blue-500 hover:text-blue-700">
+                      {{ transfer.paused ? 'Resume' : 'Pause' }}
+                    </button>
+                  </div>
+                </li>
+              </ul>
             </li>
           </ul>
-        </li>
-      </ul>
-    </div>
-    <div v-if="receivedFiles.length">
-      <h2>Received Files</h2>
-      <ul>
-        <li v-for="file in receivedFiles" :key="`${file.peerId}-${file.fileName}`">
-          {{ file.fileName }} from {{ getPeerName(file.peerId) }} ({{ formatFileSize(file.size) }})
-          <a :href="file.url" :download="file.fileName">Download</a>
-        </li>
-      </ul>
-    </div>
-    <div v-if="errors.length">
-      <h2>Errors</h2>
-      <ul>
-        <li v-for="error in errors" :key="`${error.peerId}-${error.fileName}`">
-          Error transferring {{ error.fileName }} with peer {{ getPeerName(error.peerId) }}: {{ error.message }}
-          <button @click="retryTransfer(error)">Retry</button>
-        </li>
-      </ul>
+        </div>
+
+        <!-- Received Files -->
+        <div v-if="receivedFiles.length" class="mb-5">
+          <h2 class="text-xl font-semibold mb-3">Received Files</h2>
+          <ul class="space-y-2">
+            <li v-for="file in receivedFiles" :key="`${file.peerId}-${file.fileName}`" class="text-sm">
+              {{ file.fileName }} from {{ getPeerName(file.peerId) }} ({{ formatFileSize(file.size) }})
+              <a :href="file.url" :download="file.fileName" class="text-blue-500 hover:text-blue-700 ml-2">Download</a>
+            </li>
+          </ul>
+        </div>
+
+        <!-- Errors -->
+        <div v-if="errors.length" class="mb-5">
+          <h2 class="text-xl font-semibold mb-3">Errors</h2>
+          <ul class="space-y-2">
+            <li v-for="error in errors" :key="`${error.peerId}-${error.fileName}`" class="text-sm text-red-500">
+              Error transferring {{ error.fileName }} with peer {{ getPeerName(error.peerId) }}: {{ error.message }}
+              <button @click="retryTransfer(error)" class="text-blue-500 hover:text-blue-700 ml-2">Retry</button>
+            </li>
+          </ul>
+        </div>
+      </div>
     </div>
   </div>
 </template>
+
 
 <script>
 import PeerService from './services/peer'
