@@ -20,27 +20,26 @@
       </button>
       <button 
         @click="sendFileToAllPeers" 
-        :disabled="!selectedFiles.length || !otherPeersExist"
+        :disabled="!selectedFiles.length || !otherPeers.length || isZipping"
         class="border border-gray-300 text-gray-700 py-2 px-6 rounded hover:bg-gray-100 disabled:opacity-50 transition duration-200"
       >
-        Send to All
+        {{ isZipping ? 'Zipping Files...' : 'Send to All' }}
       </button>
     </div>
 
    <!-- Connected Peers and Transfers -->
-   <div class="w-full max-w-md mb-10">
+    <div class="w-full max-w-md mb-10">
       <h2 class="text-2xl font-semibold mb-6 text-center">Connected Peers</h2>
-      <div class="space-y-6">
-        <div v-for="peer in peers" :key="peer.id" class="border border-gray-200 p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300">
+      <div v-if="otherPeers.length" class="space-y-6">
+        <div v-for="peer in otherPeers" :key="peer.id" class="border border-gray-200 p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300">
           <div class="flex justify-between items-center mb-4">
             <strong class="text-lg">{{ peer.name }}</strong>
-            <button 
-              v-if="!peer.name.startsWith('Me')" 
-              @click="sendFileToPeer(peer)" 
-              :disabled="!selectedFiles.length"
+            <button
+              @click="sendFileToPeer(peer)"
+              :disabled="!selectedFiles.length || isZipping"
               class="border border-gray-300 text-gray-700 py-2 px-4 rounded text-sm hover:bg-gray-100 disabled:opacity-50 transition duration-200"
             >
-              Send
+              {{ isZipping ? 'Zipping...' : 'Send' }}
             </button>
           </div>
           <ul v-if="getActiveTransfersForPeer(peer.id).length" class="space-y-4">
@@ -63,6 +62,7 @@
           </ul>
         </div>
       </div>
+      <p v-else class="text-center text-gray-500">No other peers connected</p>
     </div>
 
     <!-- Received Files -->
@@ -92,6 +92,7 @@
 
 <script>
 import PeerService from './services/peer'
+import JSZip from 'jszip';
 
 export default {
   name: 'App',
@@ -101,37 +102,47 @@ export default {
       peers: [],
       transfers: [],
       receivedFiles: [],
-      errors: []
+      errors: [],
+      isZipping: false,
+      myPeerId: null,
     }
+  },
+  beforeUnmount() {
+    // Clean up connections before the component is destroyed
+    PeerService.cleanup();
   },
   mounted() {
-    console.log('App mounted, initializing PeerService')
-    try {
-      PeerService.init()
-      PeerService.onPeerConnected = this.addPeer
-      PeerService.onPeerDisconnected = this.handlePeerDisconnected
-      PeerService.onFileProgress = this.updateFileProgress
-      PeerService.onFileReceived = this.addReceivedFile
-      PeerService.onTransferError = this.handleTransferError
-      PeerService.onTransferCancelled = this.handleTransferCancelled
-    } catch (error) {
-      console.error('Error initializing PeerService:', error)
-    }
-  },
-  methods: {
-    addPeer(peer) {
-      console.log("Adding peer:", peer)
-      const existingPeerIndex = this.peers.findIndex(p => p.id === peer.id)
-      if (existingPeerIndex !== -1) {
-        // Update existing peer
-        this.$set(this.peers, existingPeerIndex, peer)
-      } else {
-        // Add new peer
-        this.peers.push(peer)
+      console.log('App mounted, initializing PeerService')
+      try {
+        PeerService.init()
+        PeerService.onPeerConnected = this.addPeer
+        PeerService.onPeerDisconnected = this.handlePeerDisconnected
+        PeerService.onFileProgress = this.updateFileProgress
+        PeerService.onFileReceived = this.addReceivedFile
+        PeerService.onTransferError = this.handleTransferError
+        PeerService.onTransferCancelled = this.handleTransferCancelled
+        PeerService.onPeerIdAssigned = (peerId) => {
+          this.myPeerId = peerId;
+        }
+      } catch (error) {
+        console.error('Error initializing PeerService:', error)
       }
     },
-    
-
+  methods: {
+    addPeer(peer) {
+      console.log("Adding peer:", peer);
+      const existingPeerIndex = this.peers.findIndex(p => p.id === peer.id);
+      if (existingPeerIndex !== -1) {
+        // Update existing peer
+        this.$set(this.peers, existingPeerIndex, peer);
+      } else {
+        // Add new peer
+        this.peers.push(peer);
+      }
+      // Remove any duplicates
+      this.peers = Array.from(new Set(this.peers.map(p => JSON.stringify(p))))
+        .map(p => JSON.parse(p));
+    }, 
     getPeerName(peerId) {
       const peer = this.peers.find(p => p.id === peerId);
       return peer ? peer.name : 'Unknown Peer';
@@ -146,32 +157,53 @@ export default {
         path: file.webkitRelativePath || file.name
       }));
     },
-    sendFileToAllPeers() {
-      this.peers.forEach(peer => {
-        // Skip sending to self
-        if (!peer.name.startsWith('Me')) {
-          this.sendFileToPeer(peer);
-        }
-      });
+    async sendFileToAllPeers() {
+      for (const peer of this.otherPeers) {
+        await this.sendFileToPeer(peer);
+      }
     },
+    async sendFileToPeer(peer) {
+      if (this.selectedFiles.length > 5) {
+        await this.sendZippedFilesToPeer(peer);
+      } else {
+        this.sendIndividualFilesToPeer(peer);
+      }
+    },
+    async sendZippedFilesToPeer(peer) {
+      this.isZipping = true;
+      const zip = new JSZip();
+      const zipFileName = `dropoo_files_${new Date().toISOString()}.zip`;
 
-    sendFileToPeer(peer) {
+      this.selectedFiles.forEach(item => {
+        const file = item.file || item;
+        const filePath = item.path || file.name;
+        zip.file(filePath, file);
+      });
+
+      try {
+        const content = await zip.generateAsync({type: 'blob'});
+        const zippedFile = new File([content], zipFileName, {type: 'application/zip'});
+        await this.sendSingleFileToPeer(peer, zippedFile, zipFileName);
+      } catch (error) {
+        console.error('Error creating zip file:', error);
+        this.handleError(peer.id, zipFileName, 'Error creating zip file');
+      } finally {
+        this.isZipping = false;
+      }
+    },
+    sendIndividualFilesToPeer(peer) {
       this.selectedFiles.forEach(item => {
         if (item.file && item.file instanceof File) {
-          // It's a file object from a folder selection
           this.sendSingleFileToPeer(peer, item.file, item.path);
         } else if (item instanceof File) {
-          // It's a direct file selection
           this.sendSingleFileToPeer(peer, item, item.name);
         } else {
           console.error('Invalid file object:', item);
-          // Optionally, show an error message to the user
           this.handleError(peer.id, 'Unknown file', 'Invalid file object');
         }
       });
     },
-
-    sendSingleFileToPeer(peer, file, filePath) {
+    async sendSingleFileToPeer(peer, file, filePath) {
       const transferId = PeerService.sendFile(peer.id, file, filePath);
       const newTransfer = { 
         id: transferId,
@@ -193,7 +225,6 @@ export default {
         }
       }, 100); // Check every 100ms
     },
-
     handlePeerDisconnected(peerId) {
       this.peers = this.peers.filter(peer => peer.id !== peerId)
       this.transfers = this.transfers.filter(transfer => {
@@ -223,12 +254,10 @@ export default {
       this.transfers = this.transfers.filter(t => !(t.peerId === peerId && t.fileName === fileName))
       alert(`Transfer of ${fileName} with peer ${peerId} was cancelled: ${reason}`)
     },
-    
     removePeer(peerId) {
       this.peers = this.peers.filter(p => p.id !== peerId)
       this.transfers = this.transfers.filter(t => t.peerId !== peerId)
     },
-    
     handleCompletedTransfer(transfer) {
       // Keep the completed transfer visible for 2 seconds before removing
       setTimeout(() => {
@@ -252,13 +281,11 @@ export default {
         this.receivedFiles = this.receivedFiles.filter(f => f !== file);
       }, 1000);
     },
-
     addReceivedFile(peerId, fileName, url, size) {
       this.receivedFiles.push({ peerId, fileName, url, size });
       // Remove any related transfer
       this.transfers = this.transfers.filter(t => !(t.peerId === peerId && t.fileName === fileName));
     },
-   
     formatFileSize(bytes) {
       const units = ['bytes', 'KB', 'MB', 'GB']
       let unitIndex = 0
@@ -285,8 +312,8 @@ export default {
     }
   },
   computed: {
-    otherPeersExist() {
-      return this.peers.some(peer => !peer.name.startsWith('Me'));
+    otherPeers() {
+      return this.peers.filter(peer => peer.id !== this.myPeerId);
     }
   },
 }

@@ -10,6 +10,7 @@ class PeerService {
     this.socket = null
     this.peers = {}
     this.onPeerConnected = null
+    this.onPeerIdAssigned = null
     this.onPeerDisconnected = null
     this.onFileProgress = null
     this.onFileReceived = null
@@ -22,6 +23,27 @@ class PeerService {
     this.myPeerId = null
     this.incomingFolders = {}
     console.log("Device info:", this.deviceInfo)
+  }
+  cleanup() {
+    console.log('Cleaning up PeerService');
+    // Destroy all peer connections
+    Object.values(this.peers).forEach(peer => {
+      try {
+        peer.destroy();
+      } catch (error) {
+        console.error('Error destroying peer:', error);
+      }
+    });
+    // Clear all stored data
+    this.peers = {};
+    this.incomingFiles = {};
+    this.activeTransfers.clear();
+    this.pausedTransfers.clear();
+    this.incomingFolders = {};
+    // Disconnect from the socket
+    if (this.socket) {
+      this.socket.disconnect();
+    }
   }
 
   getDeviceInfo() {
@@ -41,17 +63,25 @@ class PeerService {
 
   init() {
     console.log('Initializing PeerService')
+    if (this.socket) {
+      // If socket exists, disconnect it before creating a new one
+      this.socket.disconnect();
+    }
     this.socket = io('http://192.168.8.134:3001')
 
     this.socket.on('connect', () => {
-      console.log('Connected to signaling server with ID:', this.socket.id)
-      this.myPeerId = this.socket.id
-      this.socket.emit('register', this.deviceInfo)
-      if (this.onPeerConnected) {
-        this.onPeerConnected({ id: this.myPeerId, name: `Me (${this.formatPeerName(this.deviceInfo)})` })
+      console.log('Connected to signaling server with ID:', this.socket.id);
+      this.myPeerId = this.socket.id;
+      this.socket.emit('register', this.deviceInfo);
+      if (this.onPeerIdAssigned) {
+        this.onPeerIdAssigned(this.myPeerId);
       }
     })
-
+    this.socket.on('disconnect', (reason) => {
+      console.log('Disconnected from signaling server:', reason);
+      // Clean up existing peer connections
+      Object.keys(this.peers).forEach(this.handlePeerDisconnection.bind(this));
+    })
     this.socket.on('peers', (peerList) => {
       console.log('Received list of peers:', peerList)
       peerList.forEach(peer => this.createPeer(peer.id, true, peer.deviceInfo))
@@ -85,18 +115,18 @@ class PeerService {
       console.log('Peer already exists:', peerId)
       return
     }
-
+  
     console.log('Creating peer:', peerId, 'initiator:', initiator)
     const peer = new Peer({ initiator })
-
+  
     peer.on('signal', (signal) => {
       this.socket.emit('signal', { peerId, signal })
     })
-
+  
     peer.on('connect', () => {
       console.log('Connected to peer:', peerId)
-      if (this.onPeerConnected) {
-        const peerName = peerId === this.myPeerId ? `Me (${this.formatPeerName(this.deviceInfo)})` : this.formatPeerName(deviceInfo)
+      if (this.onPeerConnected && peerId !== this.myPeerId) {
+        const peerName = this.formatPeerName(deviceInfo)
         console.log("Setting peer name:", peerName)
         this.onPeerConnected({ id: peerId, name: peerName })
       }
@@ -219,12 +249,19 @@ class PeerService {
   }
   
   handlePeerDisconnection(peerId) {
-    console.log('Handling peer disconnection:', peerId)
-    delete this.peers[peerId]
-    if (this.onPeerDisconnected) {
-      this.onPeerDisconnected(peerId)
+    console.log('Handling peer disconnection:', peerId);
+    if (this.peers[peerId]) {
+      try {
+        this.peers[peerId].destroy();
+      } catch (error) {
+        console.error('Error destroying peer:', error);
+      }
+      delete this.peers[peerId];
     }
-    this.cleanupTransfers(peerId)
+    if (this.onPeerDisconnected) {
+      this.onPeerDisconnected(peerId);
+    }
+    this.cleanupTransfers(peerId);
   }
   
   cleanupTransfers(peerId) {
