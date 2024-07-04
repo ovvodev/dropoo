@@ -27,8 +27,8 @@
       </button>
     </div>
 
-    <!-- Connected Peers and Transfers -->
-    <div class="w-full max-w-md mb-10">
+   <!-- Connected Peers and Transfers -->
+   <div class="w-full max-w-md mb-10">
       <h2 class="text-2xl font-semibold mb-6 text-center">Connected Peers</h2>
       <div class="space-y-6">
         <div v-for="peer in peers" :key="peer.id" class="border border-gray-200 p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300">
@@ -43,8 +43,8 @@
               Send
             </button>
           </div>
-          <ul v-if="getTransfersForPeer(peer.id).length" class="space-y-4">
-            <li v-for="transfer in getTransfersForPeer(peer.id)" :key="transfer.id" class="text-sm">
+          <ul v-if="getActiveTransfersForPeer(peer.id).length" class="space-y-4">
+            <li v-for="transfer in getActiveTransfersForPeer(peer.id)" :key="transfer.id" class="text-sm">
               <div class="flex items-center mb-2">
                 <span class="mr-2 truncate" style="max-width: 200px;">{{ transfer.fileName }}</span>
                 <span class="ml-auto">{{ transfer.progress.toFixed(0) }}%</span>
@@ -53,10 +53,11 @@
                 <div class="bg-gray-600 h-2 rounded-full" :style="{ width: `${transfer.progress}%` }"></div>
               </div>
               <div class="flex justify-end space-x-4">
-                <button @click="cancelTransfer(transfer)" class="text-sm text-gray-500 hover:text-gray-700 transition duration-200">Cancel</button>
-                <button v-if="!transfer.incoming" @click="togglePauseTransfer(transfer)" class="text-sm text-gray-500 hover:text-gray-700 transition duration-200">
+                <button v-if="!transfer.completed" @click="cancelTransfer(transfer)" class="text-sm text-gray-500 hover:text-gray-700 transition duration-200">Cancel</button>
+                <button v-if="!transfer.incoming && !transfer.completed" @click="togglePauseTransfer(transfer)" class="text-sm text-gray-500 hover:text-gray-700 transition duration-200">
                   {{ transfer.paused ? 'Resume' : 'Pause' }}
                 </button>
+                <span v-if="transfer.completed" class="text-sm text-green-500">Completed</span>
               </div>
             </li>
           </ul>
@@ -70,7 +71,7 @@
       <ul class="space-y-4 text-sm">
         <li v-for="file in receivedFiles" :key="`${file.peerId}-${file.fileName}`" class="flex justify-between items-center p-4 rounded-lg shadow-md">
           <span class="truncate" style="max-width: 200px;">{{ file.fileName }}</span>
-          <a :href="file.url" :download="file.fileName" class="border border-gray-300 text-gray-700 py-2 px-4 rounded text-sm hover:bg-gray-100 transition duration-200">Download</a>
+          <a :href="file.url" :download="file.fileName" @click="markFileAsDownloaded(file)" class="border border-gray-300 text-gray-700 py-2 px-4 rounded text-sm hover:bg-gray-100 transition duration-200">Download</a>
         </li>
       </ul>
     </div>
@@ -129,9 +130,7 @@ export default {
         this.peers.push(peer)
       }
     },
-    getTransfersForPeer(peerId) {
-      return this.transfers.filter(transfer => transfer.peerId === peerId);
-    },
+    
 
     getPeerName(peerId) {
       const peer = this.peers.find(p => p.id === peerId);
@@ -152,17 +151,43 @@ export default {
     },
     sendFileToPeer(peer) {
       this.selectedFiles.forEach(item => {
-        const transferId = PeerService.sendFile(peer.id, item.file, item.path)
-        this.transfers.push({ 
-          id: transferId,
-          peerId: peer.id, 
-          fileName: item.path, 
-          progress: 0, 
-          incoming: false,
-          paused: false
-        })
-      })
+        if (item.file && item.file instanceof File) {
+          // It's a file object from a folder selection
+          this.sendSingleFileToPeer(peer, item.file, item.path);
+        } else if (item instanceof File) {
+          // It's a direct file selection
+          this.sendSingleFileToPeer(peer, item, item.name);
+        } else {
+          console.error('Invalid file object:', item);
+          // Optionally, show an error message to the user
+          this.handleError(peer.id, 'Unknown file', 'Invalid file object');
+        }
+      });
     },
+
+    sendSingleFileToPeer(peer, file, filePath) {
+      const transferId = PeerService.sendFile(peer.id, file, filePath);
+      const newTransfer = { 
+        id: transferId,
+        peerId: peer.id, 
+        fileName: filePath || file.name, 
+        progress: 0, 
+        incoming: false,
+        paused: false,
+        completed: false
+      };
+      this.transfers.push(newTransfer);
+      
+      // Set up an interval to check for completion
+      const checkInterval = setInterval(() => {
+        if (newTransfer.progress >= 100 && !newTransfer.completed) {
+          newTransfer.completed = true;
+          clearInterval(checkInterval);
+          this.handleCompletedTransfer(newTransfer);
+        }
+      }, 100); // Check every 100ms
+    },
+
     handlePeerDisconnected(peerId) {
       this.peers = this.peers.filter(peer => peer.id !== peerId)
       this.transfers = this.transfers.filter(transfer => {
@@ -197,22 +222,37 @@ export default {
       this.peers = this.peers.filter(p => p.id !== peerId)
       this.transfers = this.transfers.filter(t => t.peerId !== peerId)
     },
+    
+    handleCompletedTransfer(transfer) {
+      // Keep the completed transfer visible for 2 seconds before removing
+      setTimeout(() => {
+        this.transfers = this.transfers.filter(t => t !== transfer);
+      }, 2000);
+    },
     updateFileProgress(peerId, fileName, progress) {
-      const transfer = this.transfers.find(t => t.peerId === peerId && t.fileName === fileName)
+      const transfer = this.transfers.find(t => t.peerId === peerId && t.fileName === fileName);
       if (transfer) {
-        transfer.progress = progress
+        transfer.progress = progress;
       }
     },
+    getActiveTransfersForPeer(peerId) {
+      return this.transfers.filter(transfer => 
+        transfer.peerId === peerId && (!transfer.completed || transfer.progress < 100)
+      );
+    },
+    markFileAsDownloaded(file) {
+      // Remove the file from receivedFiles after a short delay
+      setTimeout(() => {
+        this.receivedFiles = this.receivedFiles.filter(f => f !== file);
+      }, 1000);
+    },
+
     addReceivedFile(peerId, fileName, url, size) {
       this.receivedFiles.push({ peerId, fileName, url, size });
-      // Remove any related transfers
-      this.transfers = this.transfers.filter(t => {
-        if (fileName.endsWith('.zip')) {
-          return !(t.peerId === peerId && t.fileName.startsWith(fileName.slice(0, -4)));
-        }
-        return !(t.peerId === peerId && t.fileName === fileName);
-      });
+      // Remove any related transfer
+      this.transfers = this.transfers.filter(t => !(t.peerId === peerId && t.fileName === fileName));
     },
+   
     formatFileSize(bytes) {
       const units = ['bytes', 'KB', 'MB', 'GB']
       let unitIndex = 0

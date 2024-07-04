@@ -242,99 +242,99 @@ class PeerService {
   }
   
   sendFile(peerId, file, filePath) {
-    const peer = this.peers[peerId]
+    const peer = this.peers[peerId];
     if (!peer) {
-      this.handleError(peerId, filePath, 'Peer not found')
-      return
+      this.handleError(peerId, filePath || 'Unknown', 'Peer not found');
+      return;
     }
-    if (!file || file.size === 0) {
-      this.handleError(peerId, filePath || 'Unknown', 'File is empty or invalid')
-      return
+    if (!file || !(file instanceof File) || file.size === 0) {
+      this.handleError(peerId, filePath || 'Unknown', 'File is empty or invalid');
+      return;
     }
-
-    const transferId = `${peerId}-${filePath}-${Date.now()}`
-    const chunkSize = 16 * 1024
-    const fileReader = new FileReader()
-    let offset = 0
-    let cancelled = false
-
+  
+    const transferId = `${peerId}-${Date.now()}`;
+    const chunkSize = 16 * 1024;
+    const fileReader = new FileReader();
+    let offset = 0;
+    let cancelled = false;
+  
     const transfer = {
       cancel: () => { cancelled = true },
       pause: () => { this.pausedTransfers.add(transferId) },
       resume: () => { 
-        this.pausedTransfers.delete(transferId)
-        if (!cancelled) readNextChunk()
+        this.pausedTransfers.delete(transferId);
+        if (!cancelled) readNextChunk();
       }
-    }
-
-    this.activeTransfers.set(transferId, transfer)
-
+    };
+  
+    this.activeTransfers.set(transferId, transfer);
+  
     peer.send(JSON.stringify({ 
       type: 'file-start', 
       transferId,
-      fileName: filePath,
+      fileName: filePath || file.name,
       fileSize: file.size,
       fileType: file.type
-    }))
-
+    }));
+  
     fileReader.onerror = () => {
-      this.handleError(peerId, file.name, 'Error reading file')
-      this.activeTransfers.delete(transferId)
-    }
-
+      this.handleError(peerId, filePath || file.name, 'Error reading file');
+      this.activeTransfers.delete(transferId);
+    };
+  
     fileReader.onload = (e) => {
       if (cancelled) {
-        this.activeTransfers.delete(transferId)
-        peer.send(JSON.stringify({ type: 'file-cancel', transferId }))
+        this.activeTransfers.delete(transferId);
+        peer.send(JSON.stringify({ type: 'file-cancel', transferId }));
         if (this.onTransferCancelled) {
-          this.onTransferCancelled(peerId, file.name, 'Sender cancelled the transfer')
+          this.onTransferCancelled(peerId, filePath || file.name, 'Sender cancelled the transfer');
         }
-        return
+        return;
       }
       if (this.pausedTransfers.has(transferId)) {
-        return
+        return;
       }
       try {
-        const chunk = e.target.result
+        const chunk = e.target.result;
         peer.send(JSON.stringify({ 
           type: 'file-chunk', 
           transferId,
-          fileName: file.name,
+          fileName: filePath || file.name,
           data: Array.from(new Uint8Array(chunk))
-        }))
-        offset += chunk.byteLength
+        }));
+        offset += chunk.byteLength;
         
-        const progress = Math.min((offset / file.size) * 100, 100)
+        const progress = Math.min((offset / file.size) * 100, 100);
         if (this.onFileProgress) {
-          this.onFileProgress(peerId, file.name, progress)
+          this.onFileProgress(peerId, filePath || file.name, progress);
         }
-
+  
         if (offset < file.size) {
-          setTimeout(readNextChunk, 0)
+          setTimeout(readNextChunk, 0);
         } else {
           peer.send(JSON.stringify({ 
             type: 'file-end', 
             transferId,
-            fileName: file.name,
+            fileName: filePath || file.name,
             fileType: file.type
-          }))
-          this.activeTransfers.delete(transferId)
+          }));
+          this.activeTransfers.delete(transferId);
         }
       } catch (error) {
-        this.handleError(peerId, file.name, 'Error sending file chunk')
-        this.activeTransfers.delete(transferId)
+        this.handleError(peerId, filePath || file.name, 'Error sending file chunk');
+        this.activeTransfers.delete(transferId);
       }
-    }
-
+    };
+  
     const readNextChunk = () => {
-      const slice = file.slice(offset, offset + chunkSize)
-      fileReader.readAsArrayBuffer(slice)
-    }
-
-    readNextChunk()
-    return transferId
+      const slice = file.slice(offset, offset + chunkSize);
+      fileReader.readAsArrayBuffer(slice);
+    };
+  
+    readNextChunk();
+    return transferId;
   }
-
+  
   pauseTransfer(transferId) {
     const transfer = this.activeTransfers.get(transferId)
     if (transfer) {
