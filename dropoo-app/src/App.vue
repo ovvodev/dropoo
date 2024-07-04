@@ -26,14 +26,22 @@
         {{ isZipping ? 'Zipping Files...' : 'Send to All' }}
       </button>
     </div>
-
+  <!-- Me Section -->
+  <div class="w-full max-w-md mb-6">
+        <h2 class="text-2xl font-semibold mb-4 text-center">Me</h2>
+        <div class="border border-gray-200 p-6 rounded-lg shadow-md flex items-center">
+          <PeerAvatar v-if="myPeerId" :seed="myPeerId" />
+          <strong class="text-lg ml-4">{{ myPeerName || 'Connecting...' }}</strong>
+        </div>
+    </div>
    <!-- Connected Peers and Transfers -->
-    <div class="w-full max-w-md mb-10">
+   <div class="w-full max-w-md mb-10">
       <h2 class="text-2xl font-semibold mb-6 text-center">Connected Peers</h2>
       <div v-if="otherPeers.length" class="space-y-6">
         <div v-for="peer in otherPeers" :key="peer.id" class="border border-gray-200 p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300">
-          <div class="flex justify-between items-center mb-4">
-            <strong class="text-lg">{{ peer.name }}</strong>
+          <div class="flex items-center mb-4">
+            <PeerAvatar :seed="peer.id" />
+            <strong class="text-lg ml-4">{{ peer.name }}</strong>
             <button
               @click="sendFileToPeer(peer)"
               :disabled="!selectedFiles.length || isZipping"
@@ -93,9 +101,13 @@
 <script>
 import PeerService from './services/peer'
 import JSZip from 'jszip';
+import PeerAvatar from './components/PeerAvatar'
 
 export default {
   name: 'App',
+  components: {
+    PeerAvatar,
+  },
   data() {
     return {
       selectedFiles: [],
@@ -105,6 +117,7 @@ export default {
       errors: [],
       isZipping: false,
       myPeerId: null,
+      myPeerName: '',
     }
   },
   beforeUnmount() {
@@ -112,22 +125,23 @@ export default {
     PeerService.cleanup();
   },
   mounted() {
-      console.log('App mounted, initializing PeerService')
-      try {
-        PeerService.init()
-        PeerService.onPeerConnected = this.addPeer
-        PeerService.onPeerDisconnected = this.handlePeerDisconnected
-        PeerService.onFileProgress = this.updateFileProgress
-        PeerService.onFileReceived = this.addReceivedFile
-        PeerService.onTransferError = this.handleTransferError
-        PeerService.onTransferCancelled = this.handleTransferCancelled
-        PeerService.onPeerIdAssigned = (peerId) => {
-          this.myPeerId = peerId;
-        }
-      } catch (error) {
-        console.error('Error initializing PeerService:', error)
+    console.log('App mounted, initializing PeerService')
+    try {
+      PeerService.init()
+      PeerService.onPeerConnected = this.addPeer
+      PeerService.onPeerDisconnected = this.handlePeerDisconnected
+      PeerService.onFileProgress = this.updateFileProgress
+      PeerService.onFileReceived = this.addReceivedFile
+      PeerService.onTransferError = this.handleTransferError
+      PeerService.onTransferCancelled = this.handleTransferCancelled
+      PeerService.onPeerIdAssigned = (peerId) => {
+        this.myPeerId = peerId;
+        this.myPeerName = `Me (${PeerService.formatPeerName(PeerService.deviceInfo)})`;
       }
-    },
+    } catch (error) {
+      console.error('Error initializing PeerService:', error)
+    }
+  },
   methods: {
     addPeer(peer) {
       console.log("Adding peer:", peer);

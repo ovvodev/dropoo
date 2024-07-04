@@ -8,6 +8,7 @@
     "lint": "vue-cli-service lint"
   },
   "dependencies": {
+    "beanheads": "^0.3.3",
     "core-js": "^3.8.3",
     "jszip": "^3.10.1",
     "simple-peer": "^9.11.1",
