@@ -1,90 +1,89 @@
 <template>
-  <div class="min-h-screen bg-gray-100 py-6 flex flex-col justify-center sm:py-12">
-    <div class="relative py-3 sm:max-w-xl sm:mx-auto">
-      <div class="relative px-4 py-10 bg-white shadow-lg sm:rounded-3xl sm:p-20">
-        <h1 class="text-2xl font-semibold mb-5">Dropoo</h1>
-        
-        <!-- File selection -->
-        <div class="mb-5">
-          <input
-            type="file"
-            ref="fileInput"
-            @change="onItemsSelected"
-            multiple
-            webkitdirectory
-            class="hidden"
-          >
-          <button 
-            @click="triggerFileInput"
-            class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded mr-2"
-          >
-            Select Files or Folders
-          </button>
-          <button 
-            @click="sendFileToAllPeers" 
-            :disabled="!selectedFiles.length || !peers.length"
-            class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded disabled:opacity-50"
-          >
-            Send to All Peers
-          </button>
-        </div>
+  <div class="min-h-screen py-12 flex flex-col items-center font-mono text-gray-900">
+    <h1 class="text-3xl font-semibold mb-10">Dropoo</h1>
+    
+    <!-- File selection -->
+    <div class="mb-10 flex space-x-4">
+      <input
+        type="file"
+        ref="fileInput"
+        @change="onItemsSelected"
+        multiple
+        webkitdirectory
+        class="hidden"
+      >
+      <button 
+        @click="triggerFileInput"
+        class="border border-gray-300 text-gray-700 py-2 px-6 rounded hover:bg-gray-100 transition duration-200"
+      >
+        Select Files
+      </button>
+      <button 
+        @click="sendFileToAllPeers" 
+        :disabled="!selectedFiles.length || !peers.length"
+        class="border border-gray-300 text-gray-700 py-2 px-6 rounded hover:bg-gray-100 disabled:opacity-50 transition duration-200"
+      >
+        Send to All
+      </button>
+    </div>
 
-        <!-- Connected Peers and Transfers -->
-        <div class="mb-5">
-          <h2 class="text-xl font-semibold mb-3">Connected Peers and Transfers</h2>
-          <ul class="space-y-4">
-            <li v-for="peer in peers" :key="peer.id" class="border p-4 rounded">
-              <div class="flex justify-between items-center">
-                <strong>{{ peer.name }}</strong>
-                <button 
-                  v-if="!peer.name.startsWith('Me')" 
-                  @click="sendFileToPeer(peer)" 
-                  :disabled="!selectedFiles.length"
-                  class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-2 rounded text-sm disabled:opacity-50"
-                >
-                  Send Files
+    <!-- Connected Peers and Transfers -->
+    <div class="w-full max-w-md mb-10">
+      <h2 class="text-2xl font-semibold mb-6 text-center">Connected Peers</h2>
+      <div class="space-y-6">
+        <div v-for="peer in peers" :key="peer.id" class="border border-gray-200 p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300">
+          <div class="flex justify-between items-center mb-4">
+            <strong class="text-lg">{{ peer.name }}</strong>
+            <button 
+              v-if="!peer.name.startsWith('Me')" 
+              @click="sendFileToPeer(peer)" 
+              :disabled="!selectedFiles.length"
+              class="border border-gray-300 text-gray-700 py-2 px-4 rounded text-sm hover:bg-gray-100 disabled:opacity-50 transition duration-200"
+            >
+              Send
+            </button>
+          </div>
+          <ul v-if="getTransfersForPeer(peer.id).length" class="space-y-4">
+            <li v-for="transfer in getTransfersForPeer(peer.id)" :key="transfer.id" class="text-sm">
+              <div class="flex items-center mb-2">
+                <span class="mr-2 truncate" style="max-width: 200px;">{{ transfer.fileName }}</span>
+                <span class="ml-auto">{{ transfer.progress.toFixed(0) }}%</span>
+              </div>
+              <div class="w-full bg-gray-200 rounded-full h-2 mb-2">
+                <div class="bg-gray-600 h-2 rounded-full" :style="{ width: `${transfer.progress}%` }"></div>
+              </div>
+              <div class="flex justify-end space-x-4">
+                <button @click="cancelTransfer(transfer)" class="text-sm text-gray-500 hover:text-gray-700 transition duration-200">Cancel</button>
+                <button v-if="!transfer.incoming" @click="togglePauseTransfer(transfer)" class="text-sm text-gray-500 hover:text-gray-700 transition duration-200">
+                  {{ transfer.paused ? 'Resume' : 'Pause' }}
                 </button>
               </div>
-              <ul v-if="getTransfersForPeer(peer.id).length" class="mt-2 space-y-2">
-                <li v-for="transfer in getTransfersForPeer(peer.id)" :key="transfer.id" class="text-sm">
-                  <div class="flex items-center">
-                    <span class="mr-2">{{ transfer.fileName }} - {{ transfer.progress.toFixed(2) }}%</span>
-                    <progress :value="transfer.progress" max="100" class="w-1/3"></progress>
-                  </div>
-                  <div class="mt-1">
-                    <button @click="cancelTransfer(transfer)" class="text-red-500 hover:text-red-700 mr-2">Cancel</button>
-                    <button v-if="!transfer.incoming" @click="togglePauseTransfer(transfer)" class="text-blue-500 hover:text-blue-700">
-                      {{ transfer.paused ? 'Resume' : 'Pause' }}
-                    </button>
-                  </div>
-                </li>
-              </ul>
-            </li>
-          </ul>
-        </div>
-
-        <!-- Received Files -->
-        <div v-if="receivedFiles.length" class="mb-5">
-          <h2 class="text-xl font-semibold mb-3">Received Files</h2>
-          <ul class="space-y-2">
-            <li v-for="file in receivedFiles" :key="`${file.peerId}-${file.fileName}`" class="text-sm">
-              {{ file.fileName }} from {{ getPeerName(file.peerId) }} ({{ formatFileSize(file.size) }})
-              <a :href="file.url" :download="file.fileName" class="text-blue-500 hover:text-blue-700 ml-2">Download</a>
-            </li>
-          </ul>
-        </div>
-
-        <!-- Errors -->
-        <div v-if="errors.length" class="mb-5">
-          <h2 class="text-xl font-semibold mb-3">Errors</h2>
-          <ul class="space-y-2">
-            <li v-for="error in errors" :key="`${error.peerId}-${error.fileName}`" class="text-sm text-red-500">
-              Error transferring {{ error.fileName }} with peer {{ getPeerName(error.peerId) }}: {{ error.message }}
-              <button @click="retryTransfer(error)" class="text-blue-500 hover:text-blue-700 ml-2">Retry</button>
             </li>
           </ul>
         </div>
       </div>
+    </div>
+
+    <!-- Received Files -->
+    <div v-if="receivedFiles.length" class="w-full max-w-md mb-10">
+      <h2 class="text-2xl font-semibold mb-6 text-center">Received Files</h2>
+      <ul class="space-y-4 text-sm">
+        <li v-for="file in receivedFiles" :key="`${file.peerId}-${file.fileName}`" class="flex justify-between items-center p-4 rounded-lg shadow-md">
+          <span class="truncate" style="max-width: 200px;">{{ file.fileName }}</span>
+          <a :href="file.url" :download="file.fileName" class="border border-gray-300 text-gray-700 py-2 px-4 rounded text-sm hover:bg-gray-100 transition duration-200">Download</a>
+        </li>
+      </ul>
+    </div>
+
+    <!-- Errors -->
+    <div v-if="errors.length" class="w-full max-w-md">
+      <h2 class="text-2xl font-semibold mb-6 text-center">Errors</h2>
+      <ul class="space-y-4 text-sm">
+        <li v-for="error in errors" :key="`${error.peerId}-${error.fileName}`" class="flex justify-between items-center p-4 rounded-lg shadow-md">
+          <span class="truncate" style="max-width: 200px;">Error: {{ error.fileName }}</span>
+          <button @click="retryTransfer(error)" class="border border-gray-300 text-gray-700 py-2 px-4 rounded text-sm hover:bg-gray-100 transition duration-200">Retry</button>
+        </li>
+      </ul>
     </div>
   </div>
 </template>
