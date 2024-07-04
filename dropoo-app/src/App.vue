@@ -20,7 +20,7 @@
       </button>
       <button 
         @click="sendFileToAllPeers" 
-        :disabled="!selectedFiles.length || !peers.length"
+        :disabled="!selectedFiles.length || !otherPeersExist"
         class="border border-gray-300 text-gray-700 py-2 px-6 rounded hover:bg-gray-100 disabled:opacity-50 transition duration-200"
       >
         Send to All
@@ -147,8 +147,14 @@ export default {
       }));
     },
     sendFileToAllPeers() {
-      this.peers.forEach(peer => this.sendFileToPeer(peer))
+      this.peers.forEach(peer => {
+        // Skip sending to self
+        if (!peer.name.startsWith('Me')) {
+          this.sendFileToPeer(peer);
+        }
+      });
     },
+
     sendFileToPeer(peer) {
       this.selectedFiles.forEach(item => {
         if (item.file && item.file instanceof File) {
@@ -277,7 +283,12 @@ export default {
         alert('File no longer available for retry. Please select the file again.')
       }
     }
-  }
+  },
+  computed: {
+    otherPeersExist() {
+      return this.peers.some(peer => !peer.name.startsWith('Me'));
+    }
+  },
 }
 </script>
 
