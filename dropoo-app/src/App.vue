@@ -1,10 +1,9 @@
 <template>
   <div class="min-h-screen py-12 flex flex-col items-center font-mono text-gray-900">
-
     <!-- Notification area -->
     <div class="fixed top-4 right-4 z-50">
       <transition-group name="fade">
-        <div v-for="notification in notifications" :key="notification.id" 
+        <div v-for="notification in notifications" :key="notification.id"
              class="mb-2 p-4 rounded-md shadow-md max-w-md"
              :class="notification.type === 'error' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'">
           {{ notification.message }}
@@ -22,6 +21,20 @@
         <RandomAvatar v-if="myPeerId" :seed="myPeerId" :size="170" />
         <strong class="text-lg block mb-2 ml-16 ">{{ myGreekName }}</strong>
         <p class="text-xs ml-16 mb-4 inline-block">{{ myPeerName || 'Connecting...' }}</p>
+        
+        <!-- Received Files -->
+        <div v-if="receivedFiles.length" class="mt-6">
+          <h3 class="text-lg font-semibold mb-2">Received Files</h3>
+          <ul class="space-y-2 text-sm">
+            <li v-for="file in receivedFiles" :key="`${file.peerId}-${file.fileName}`" class="flex justify-between items-center">
+              <span class="truncate" style="max-width: 200px;">{{ file.fileName }}</span>
+              <a :href="file.url" :download="file.fileName" @click="markFileAsDownloaded(file)" 
+                 class="border border-gray-300 text-gray-700 py-1 px-2 rounded text-xs hover:bg-gray-100 transition duration-200">
+                Download
+              </a>
+            </li>
+          </ul>
+        </div>
       </div>
     </div>
     
@@ -49,11 +62,9 @@
         {{ isZipping ? 'Zipping Files...' : 'Send to All' }}
       </button>
     </div>
-  
-  
 
-   <!-- Connected Peers and Transfers -->
-   <div class="w-full max-w-md mb-10">
+    <!-- Connected Peers and Transfers -->
+    <div class="w-full max-w-md mb-10">
       <h2 class="text-2xl font-semibold mb-6 text-center">Connected Peers</h2>
       <div v-if="otherPeers.length" class="space-y-6">
         <div v-for="peer in otherPeers" :key="peer.id" class="border border-gray-200 p-4 pt-8 pb-8 pl-10 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300 relative overflow-visible bg-gray-50">
@@ -92,17 +103,6 @@
       <p v-else class="text-center text-gray-500">No other peers connected</p>
     </div>
 
-    <!-- Received Files -->
-    <div v-if="receivedFiles.length" class="w-full max-w-md mb-10">
-      <h2 class="text-2xl font-semibold mb-6 text-center">Received Files</h2>
-      <ul class="space-y-4 text-sm">
-        <li v-for="file in receivedFiles" :key="`${file.peerId}-${file.fileName}`" class="flex justify-between items-center p-4 rounded-lg shadow-md">
-          <span class="truncate" style="max-width: 200px;">{{ file.fileName }}</span>
-          <a :href="file.url" :download="file.fileName" @click="markFileAsDownloaded(file)" class="border border-gray-300 text-gray-700 py-2 px-4 rounded text-sm hover:bg-gray-100 transition duration-200">Download</a>
-        </li>
-      </ul>
-    </div>
-
     <!-- Errors -->
     <div v-if="errors.length" class="w-full max-w-md">
       <h2 class="text-2xl font-semibold mb-6 text-center">Errors</h2>
@@ -115,6 +115,7 @@
     </div>
   </div>
 </template>
+
 
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
