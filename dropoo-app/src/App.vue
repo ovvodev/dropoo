@@ -1,50 +1,53 @@
 <template>
-
-  <div class="w-full flex flex-col items-center font-mono text-gray-900 relative">
-    <h6 class="text-xs pb-5 text-center">simple peer to peer file transfer app</h6>
-
+  <div class="w-full flex flex-col items-center font-mono bg-primary dark:bg-gray-800 text-primary dark:text-white relative">
+    <h6 class="text-xs pb-5 text-center dark:text-gray-300">simple peer to peer file transfer app</h6>
+    <button @click="toggleTheme" class="p-2 rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-100 focus:ring-gray-500 dark:focus:ring-offset-gray-800">
+    <SunIcon v-if="isDarkTheme" class="h-6 w-6 text-yellow-400" />
+    <MoonIcon v-else class="h-6 w-6 text-gray-700" />
+  </button>
   </div>
-  <div class="min-h-screen py-12 flex flex-col items-center font-mono text-gray-900 relative">
+
+  <div class="min-h-screen py-12 flex flex-col items-center font-mono bg-primary dark:bg-gray-800 text-primary dark:text-white relative">
     <!-- Pulsating circles -->
     <div class="pulse-container">
-      <div class="pulse-circle"></div>
-      <div class="pulse-circle"></div>
-      <div class="pulse-circle"></div>
-      <div class="pulse-circle"></div>
-      <div class="pulse-circle"></div>
-      <div class="pulse-circle"></div>
+      <div class="pulse-circle dark:border-gray-600"></div>
+      <div class="pulse-circle dark:border-gray-600"></div>
+      <div class="pulse-circle dark:border-gray-600"></div>
+      <div class="pulse-circle dark:border-gray-600"></div>
+      <div class="pulse-circle dark:border-gray-600"></div>
+      <div class="pulse-circle dark:border-gray-600"></div>
     </div>
 
     <!-- Notification area -->
     <div class="fixed top-4 right-4 z-50">
       <transition-group name="fade">
         <div v-for="notification in notifications" :key="notification.id"
-             class="mb-2 p-4 rounded-md shadow-md max-w-md"
-             :class="notification.type === 'error' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'">
+          class="mb-2 p-4 rounded-md shadow-md max-w-md"
+          :class="notification.type === 'error' ? 'bg-red-100 text-red-700 dark:bg-red-800 dark:text-red-200' : 'bg-green-100 text-green-700 dark:bg-green-800 dark:text-green-200'">
           {{ notification.message }}
         </div>
       </transition-group>
     </div>
-   
+
     <!-- Header -->
-    <h1 class="text-3xl font-semibold mb-10">Droppo</h1>
-    
+    <h1 class="text-3xl font-semibold mb-10 dark:text-white">Droppo</h1>
+
     <!-- Me Section -->
     <div class="w-full max-w-md mb-6">
-      <h2 class="text-2xl font-semibold mb-4 text-center">Me</h2>
-      <div class="border border-gray-200 p-4 pt-8 pb-8 pl-10 rounded-lg shadow-md relative overflow-visible bg-gray-50">
+      <h2 class="text-2xl font-semibold mb-4 text-center dark:text-white">Me</h2>
+      <div class="border border-gray-200 dark:border-gray-700 p-4 pt-8 pb-8 pl-10 rounded-lg shadow-md relative overflow-visible bg-gray-50 dark:bg-gray-700">
         <RandomAvatar v-if="myPeerId" :seed="myPeerId" :size="170" />
-        <strong class="text-lg block mb-2 ml-16 ">{{ myGreekName }}</strong>
-        <p class="text-xs ml-16 mb-4 inline-block">{{ myPeerName || 'Connecting...' }}</p>
-        
+        <strong class="text-lg block mb-2 ml-16 dark:text-white">{{ myGreekName }}</strong>
+        <p class="text-xs ml-16 mb-4 inline-block dark:text-gray-300">{{ myPeerName || 'Connecting...' }}</p>
+
         <!-- Received Files -->
         <div v-if="receivedFiles.length" class="mt-6">
-          <h3 class="text-lg font-semibold mb-2">Received Files</h3>
+          <h3 class="text-lg font-semibold mb-2 dark:text-white">Received Files</h3>
           <ul class="space-y-2 text-sm">
             <li v-for="file in receivedFiles" :key="`${file.peerId}-${file.fileName}`" class="flex justify-between items-center">
-              <span class="truncate" style="max-width: 200px;">{{ file.fileName }}</span>
-              <a :href="file.url" :download="file.fileName" @click="markFileAsDownloaded(file)" 
-                 class="border border-gray-300 text-gray-700 py-1 px-2 rounded text-xs hover:bg-gray-100 transition duration-200">
+              <span class="truncate dark:text-gray-300" style="max-width: 200px;">{{ file.fileName }}</span>
+              <a :href="file.url" :download="file.fileName" @click="markFileAsDownloaded(file)"
+                class="border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 py-1 px-2 rounded text-xs hover:bg-gray-100 dark:hover:bg-gray-600 transition duration-200">
                 Download
               </a>
             </li>
@@ -52,43 +55,44 @@
         </div>
       </div>
     </div>
-    
+
     <!-- File selection -->
     <div class="mb-10 flex space-x-4">
-    <input
-      type="file"
-      ref="fileInput"
-      @change="onItemsSelected"
-      multiple
-      class="hidden"
-    >
-    <button 
-      @click="triggerFileInput"
-      class="border border-gray-300 text-gray-700 py-2 px-6 rounded hover:bg-gray-100 transition duration-200"
-    >
-      Select Files
-    </button>
-    <button 
-      @click="sendFileToAllPeers" 
-      :disabled="!selectedFiles.length || !otherPeers.length || isZipping"
-      class="border border-gray-300 text-gray-700 py-2 px-6 rounded hover:bg-gray-100 disabled:opacity-50 transition duration-200"
-    >
-      {{ isZipping ? 'Zipping Files...' : 'Send to All' }}
-    </button>
-  </div>
+      <input
+        type="file"
+        ref="fileInput"
+        @change="onItemsSelected"
+        multiple
+        class="hidden"
+      >
+      <button
+        @click="triggerFileInput"
+        class="border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 py-2 px-6 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition duration-200"
+      >
+        Select Files
+      </button>
+      <button
+        @click="sendFileToAllPeers"
+        :disabled="!selectedFiles.length || !otherPeers.length || isZipping"
+        class="border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 py-2 px-6 rounded hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 transition duration-200"
+      >
+        {{ isZipping ? 'Zipping Files...' : 'Send to All' }}
+      </button>
+    </div>
+
     <!-- Connected Peers and Transfers -->
     <div class="w-full max-w-md mb-10">
-      <h2 class="text-2xl font-semibold mb-6 text-center">Connected Peers</h2>
+      <h2 class="text-2xl font-semibold mb-6 text-center dark:text-white">Connected Peers</h2>
       <div v-if="otherPeers.length" class="space-y-6">
-        <div v-for="peer in otherPeers" :key="peer.id" class="border border-gray-200 p-4 pt-8 pb-8 pl-10 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300 relative overflow-visible bg-gray-50">
+        <div v-for="peer in otherPeers" :key="peer.id" class="border border-gray-200 dark:border-gray-700 p-4 pt-8 pb-8 pl-10 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300 relative overflow-visible bg-gray-50 dark:bg-gray-700">
           <RandomAvatar :seed="peer.id" :size="170" :aria-label="peer.greekName" />
           <div class="ml-16 mt-8">
-            <strong v-if="peer.greekName" class="text-lg block mb-2">{{ peer.greekName }}</strong>
-            <p v-if="peer.deviceInfo" class="text-xs block mb-4">{{ peer.deviceInfo }}</p>
+            <strong v-if="peer.greekName" class="text-lg block mb-2 dark:text-white">{{ peer.greekName }}</strong>
+            <p v-if="peer.deviceInfo" class="text-xs block mb-4 dark:text-gray-300">{{ peer.deviceInfo }}</p>
             <button
               @click="sendFileToPeer(peer)"
               :disabled="!selectedFiles.length || isZipping"
-              class="border border-gray-300 text-gray-700 py-2 px-4 rounded text-sm hover:bg-gray-100 disabled:opacity-50 transition duration-200"
+              class="border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 py-2 px-4 rounded text-sm hover:bg-gray-100 dark:hover:bg-gray-600 disabled:opacity-50 transition duration-200"
             >
               {{ isZipping ? 'Zipping...' : 'Send' }}
             </button>
@@ -96,55 +100,54 @@
           <ul v-if="getActiveTransfersForPeer(peer.id).length" class="space-y-4 mt-6 ml-16">
             <li v-for="transfer in getActiveTransfersForPeer(peer.id)" :key="transfer.id" class="text-sm">
               <div class="flex items-center mb-2">
-                <span class="mr-2 truncate" style="max-width: 200px;">{{ transfer.fileName }}</span>
-                <span class="ml-auto">{{ transfer.progress.toFixed(0) }}%</span>
+                <span class="mr-2 truncate dark:text-gray-300" style="max-width: 200px;">{{ transfer.fileName }}</span>
+                <span class="ml-auto dark:text-gray-300">{{ transfer.progress.toFixed(0) }}%</span>
               </div>
-              <div class="w-full bg-gray-200 rounded-full h-2 mb-2">
-                <div class="bg-gray-600 h-2 rounded-full" :style="{ width: `${transfer.progress}%` }"></div>
+              <div class="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-2 mb-2">
+                <div class="bg-gray-600 dark:bg-gray-300 h-2 rounded-full" :style="{ width: `${transfer.progress}%` }"></div>
               </div>
               <div class="flex justify-end space-x-4">
-                <button v-if="!transfer.completed" @click="cancelTransfer(transfer)" class="text-sm text-gray-500 hover:text-gray-700 transition duration-200">Cancel</button>
-                <button v-if="!transfer.incoming && !transfer.completed" @click="togglePauseTransfer(transfer)" class="text-sm text-gray-500 hover:text-gray-700 transition duration-200">
+                <button v-if="!transfer.completed" @click="cancelTransfer(transfer)" class="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition duration-200">Cancel</button>
+                <button v-if="!transfer.incoming && !transfer.completed" @click="togglePauseTransfer(transfer)" class="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition duration-200">
                   {{ transfer.paused ? 'Resume' : 'Pause' }}
                 </button>
-                <span v-if="transfer.completed" class="text-sm text-green-500">Completed</span>
+                <span v-if="transfer.completed" class="text-sm text-green-500 dark:text-green-400">Completed</span>
               </div>
             </li>
           </ul>
         </div>
       </div>
-      <p v-else class="text-center text-gray-500">No other peers connected</p>
+      <p v-else class="text-center text-gray-500 dark:text-gray-400">No other peers connected</p>
     </div>
 
     <!-- Errors -->
     <div v-if="errors.length" class="w-full max-w-md">
-      <h2 class="text-2xl font-semibold mb-6 text-center">Errors</h2>
+      <h2 class="text-2xl font-semibold mb-6 text-center dark:text-white">Errors</h2>
       <ul class="space-y-4 text-sm">
-        <li v-for="error in errors" :key="`${error.peerId}-${error.fileName}`" class="flex justify-between items-center p-4 rounded-lg shadow-md">
-          <span class="truncate" style="max-width: 200px;">Error: {{ error.fileName }}</span>
-          <button @click="retryTransfer(error)" class="border border-gray-300 text-gray-700 py-2 px-4 rounded text-sm hover:bg-gray-100 transition duration-200">Retry</button>
+        <li v-for="error in errors" :key="`${error.peerId}-${error.fileName}`" class="flex justify-between items-center p-4 rounded-lg shadow-md dark:bg-gray-700">
+          <span class="truncate dark:text-gray-300" style="max-width: 200px;">Error: {{ error.fileName }}</span>
+          <button @click="retryTransfer(error)" class="border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 py-2 px-4 rounded text-sm hover:bg-gray-100 dark:hover:bg-gray-600 transition duration-200">Retry</button>
         </li>
       </ul>
     </div>
   </div>
 
   <!-- Footer -->
-  <footer class="w-full flex flex-col items-center font-mono text-gray-900 relative text-xs mb-2">
-    <p class="mb-2">Cretaed with: Vue.js, WebRTC, Socket.io, Tailwind CSS</p>
-   
+  <footer class="w-full flex flex-col items-center font-mono bg-primary dark:bg-gray-800 text-primary dark:text-gray-300 relative text-xs mb-2">
+    <p class="mb-2">Created with: Vue.js, WebRTC, Socket.io, Tailwind CSS</p>
     <p>
-      Created by 
-      <a href="https://github.com/ovvodev" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline">
-
-      </a> 
-      | 
-      <a href="https://ovvo.dev" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline">
+      Created by
+      <a href="https://github.com/ovvodev" target="_blank" rel="noopener noreferrer" class="text-blue-600 dark:text-blue-400 hover:underline">
+        ovvodev
+      </a>
+      |
+      <a href="https://ovvo.dev" target="_blank" rel="noopener noreferrer" class="text-blue-600 dark:text-blue-400 hover:underline">
         ovvo.dev
       </a>
     </p>
     <p class="mb-2">
-      Avatars by 
-      <a href="https://beanheads.robertbroersma.com" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline">
+      Avatars by
+      <a href="https://beanheads.robertbroersma.com" target="_blank" rel="noopener noreferrer" class="text-blue-600 dark:text-blue-400 hover:underline">
         Beanheads
       </a>
     </p>
@@ -153,10 +156,11 @@
 
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import PeerService from './services/peer'
 import JSZip from 'jszip'
 import RandomAvatar from './components/RandomAvatar.vue'
+import { SunIcon, MoonIcon } from '@heroicons/vue/24/solid'
 
 
 const serverUrl = process.env.VUE_APP_SERVER_URL || 'https://dropoo-backend.fly.dev'
@@ -178,6 +182,22 @@ const notifications = ref([])
 const otherPeers = computed(() => {
   return peers.value.filter(peer => peer.id !== myPeerId.value)
 })
+
+const isDarkTheme = ref(false)
+
+const applyTheme = () => {
+  if (isDarkTheme.value) {
+    document.documentElement.classList.add('dark');
+  } else {
+    document.documentElement.classList.remove('dark');
+  }
+  localStorage.setItem('theme', isDarkTheme.value ? 'dark' : 'light');
+}
+
+const toggleTheme = () => {
+  isDarkTheme.value = !isDarkTheme.value;
+  applyTheme();
+}
 
 // Methods
 const addNotification = (message, type = 'success') => {
@@ -386,6 +406,9 @@ const handleError = (peerId, fileName, message) => {
 // Lifecycle hooks
 onMounted(() => {
   console.log('App mounted, initializing PeerService')
+  const savedTheme = localStorage.getItem('theme')
+  isDarkTheme.value = savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)
+  applyTheme()
   try {
     PeerService.init(serverUrl)
     PeerService.onPeerConnected = addPeer
@@ -406,6 +429,8 @@ onMounted(() => {
   }
 })
 
+watch(isDarkTheme, applyTheme)
+
 onBeforeUnmount(() => {
   // Clean up connections before the component is destroyed
   PeerService.cleanup()
@@ -418,17 +443,58 @@ onBeforeUnmount(() => {
 #app {
   font-family: Avenir, Helvetica, Arial, sans-serif;
   text-align: center;
-  color: #2c3e50;
+  color: var(--text-primary);
   margin-top: 60px;
 }
+
+:root {
+  --bg-primary: #ffffff;
+  --text-primary: #333333;
+  --bg-secondary: #f3f4f6;
+  --border-color: #e5e7eb;
+  --pulse-color: rgba(74, 117, 162, 0.545);
+}
+
+.dark {
+  --bg-primary: #1f2937;
+  --text-primary: #f3f4f6;
+  --bg-secondary: #374151;
+  --border-color: #4b5563;
+  --pulse-color: rgba(74, 117, 162, 0.3);
+}
+
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+/* Dark mode adjustments */
+.dark .bg-gray-50 {
+  background-color: var(--bg-secondary);
+}
+
+.dark .border-gray-200 {
+  border-color: var(--border-color);
+}
+
+.dark .text-gray-700 {
+  color: var(--text-primary);
+}
+
+.dark .text-gray-500 {
+  color: #9ca3af;
+}
+
+.dark .text-blue-600 {
+  color: #60a5fa;
+}
+
 .fade-enter-active, .fade-leave-active {
   transition: opacity 0.5s;
 }
 .fade-enter, .fade-leave-to {
   opacity: 0;
 }
-
-
 
 /* Pulsating circle effect */
 .pulse-container {
@@ -447,9 +513,9 @@ onBeforeUnmount(() => {
   left: 50%;
   transform: translate(-50%, -50%);
   border-radius: 50%;
-  border: 0.1rem solid rgba(74, 117, 162, 0.545); 
-  width: 100vmax; /* Use vmax to cover the entire screen */
-  height: 100vmax; /* Use vmax to cover the entire screen */
+  border: 0.1rem solid var(--pulse-color);
+  width: 100vmax;
+  height: 100vmax;
   opacity: 0;
   animation: pulse 6s cubic-bezier(0.5, 0, 0.5, 1) infinite;
 }
