@@ -32,6 +32,11 @@
     <!-- Header -->
     <h1 class="text-3xl font-semibold mb-10 dark:text-white">Droppo</h1>
 
+    <!--  a new section for room information -->
+  <div class="mb-4 text-center">
+    <p class="text-lg font-semibold">Room ID: {{ roomId }}</p>
+  </div>
+
     <!-- Me Section -->
     <div class="w-full max-w-md mb-6">
       <h2 class="text-2xl font-semibold mb-4 text-center dark:text-white">Me</h2>
@@ -167,7 +172,7 @@
 
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
-import PeerService from './services/peer'
+import PeerService from './services/PeerService'
 import JSZip from 'jszip'
 import RandomAvatar from './components/RandomAvatar.vue'
 import { SunIcon, MoonIcon } from '@heroicons/vue/24/solid'
@@ -187,6 +192,7 @@ const myPeerId = ref(null)
 const myPeerName = ref('')
 const myGreekName = ref('')
 const notifications = ref([])
+const roomId = ref('')
 
 // Computed properties
 const otherPeers = computed(() => {
@@ -222,16 +228,14 @@ const addPeer = (peer) => {
   console.log("Adding peer:", peer)
   const existingPeerIndex = peers.value.findIndex(p => p.id === peer.id)
   if (existingPeerIndex !== -1) {
-    // Update existing peer
     peers.value[existingPeerIndex] = { ...peers.value[existingPeerIndex], ...peer }
   } else {
-    // Add new peer
     peers.value.push(peer)
   }
-  // Remove any duplicates
   peers.value = Array.from(new Set(peers.value.map(p => JSON.stringify(p))))
     .map(p => JSON.parse(p))
 }
+
 
 const triggerFileInput = () => {
   document.querySelector('input[type="file"]').click()
@@ -429,8 +433,9 @@ onMounted(() => {
   const savedTheme = localStorage.getItem('theme')
   isDarkTheme.value = savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)
   applyTheme()
+  
   try {
-    PeerService.init(serverUrl)
+    PeerService.init()
     PeerService.onPeerConnected = addPeer
     PeerService.onPeerDisconnected = handlePeerDisconnected
     PeerService.onFileProgress = updateFileProgress
@@ -438,6 +443,9 @@ onMounted(() => {
     PeerService.onTransferError = handleTransferError
     PeerService.onTransferCancelled = handleTransferCancelled
     PeerService.onTransferCompleted = handleCompletedTransfer
+    PeerService.onRoomCreated = (id) => {
+      roomId.value = id
+    }
     PeerService.onPeerIdAssigned = (peerId) => {
       myPeerId.value = peerId
       myGreekName.value = PeerService.myGreekName

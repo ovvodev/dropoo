@@ -1,68 +1,66 @@
 const express = require('express');
 const http = require('http');
-const socketIo = require('socket.io');
-const cors = require('cors');
+const WebSocket = require('ws');
+const { v4: uuidv4 } = require('uuid');
 
 const app = express();
-app.use(cors({
-  origin: process.env.FRONTEND_URL || "https://dropoo.net",
-  methods: ["GET", "POST"],
-  credentials: true
-}));
-app.get('/', (req, res) => {
-  res.send('Dropoo server is running');
-});
-
 const server = http.createServer(app);
-const io = socketIo(server, {
-  cors: {
-    origin: process.env.FRONTEND_URL || "https://dropoo.net",
-    methods: ["GET", "POST"],
-    credentials: true,
-    allowedHeaders: ["my-custom-header"]
-  },
-  allowEIO3: true,
-  transports: ['websocket', 'polling']
-});
+const wss = new WebSocket.Server({ server });
 
+const rooms = new Map();
 
+wss.on('connection', (ws) => {
+  const clientId = uuidv4();
+  let clientRoom;
 
+  // Send the client their assigned ID
+  ws.send(JSON.stringify({ type: 'id-assigned', id: clientId }));
 
-const connectedPeers = new Map();
+  ws.on('message', (message) => {
+    const data = JSON.parse(message);
 
-io.on('connection', (socket) => {
-  console.log('New client connected:', socket.id);
-
-  socket.on('register', (deviceInfo) => {
-    connectedPeers.set(socket.id, deviceInfo);
-    
-    // Send the new peer info to all other clients
-    socket.broadcast.emit('peer-joined', { id: socket.id, deviceInfo });
-
-    // Send the new peer a list of all connected peers
-    const peerList = Array.from(connectedPeers.entries()).map(([id, info]) => ({ id, deviceInfo: info }));
-    socket.emit('peers', peerList.filter(peer => peer.id !== socket.id));
+    if (data.type === 'join') {
+      clientRoom = data.room;
+      if (!rooms.has(clientRoom)) {
+        rooms.set(clientRoom, new Map());
+      }
+      rooms.get(clientRoom).set(clientId, ws);
+      broadcastPeers(clientRoom);
+    } else if (data.type === 'signal') {
+      const targetWs = rooms.get(clientRoom).get(data.target);
+      if (targetWs) {
+        targetWs.send(JSON.stringify({
+          type: 'signal',
+          sender: clientId,
+          signal: data.signal
+        }));
+      }
+    }
   });
 
-  socket.on('signal', (data) => {
-    console.log('Signal received from', socket.id, 'for', data.peerId);
-    io.to(data.peerId).emit('signal', {
-      peerId: socket.id,
-      signal: data.signal
+  ws.on('close', () => {
+    if (clientRoom && rooms.has(clientRoom)) {
+      rooms.get(clientRoom).delete(clientId);
+      if (rooms.get(clientRoom).size === 0) {
+        rooms.delete(clientRoom);
+      } else {
+        broadcastPeers(clientRoom);
+      }
+    }
+  });
+
+  function broadcastPeers(room) {
+    const peers = Array.from(rooms.get(room).keys());
+    rooms.get(room).forEach((clientWs) => {
+      clientWs.send(JSON.stringify({ type: 'peers', peers }));
     });
-  });
-
-  socket.on('disconnect', () => {
-    console.log('Client disconnected:', socket.id);
-    connectedPeers.delete(socket.id);
-    io.emit('peer-left', socket.id);
-  });
+  }
 });
 
 // Add a basic route for health checks
 app.get('/', (req, res) => {
   res.send('Dropoo server is running');
 });
-const PORT = process.env.PORT || 3000;
 
-server.listen(PORT, '0.0.0.0', () => console.log(`Server running on port ${PORT}`));
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
