@@ -22,39 +22,37 @@ class PeerService {
     this.pausedTransfers = new Set()
     this.deviceInfo = this.getDeviceInfo()
     this.myPeerId = null
-    this.peerNames = new Map();
+    this.peerNames = new Map()
     this.myGreekName = null
+    this.onRoomCreated = null
+    this.onTransferCompleted = null
     this.incomingFolders = {}
-    console.log("Device info:", this.deviceInfo)
   }
+
   cleanup() {
-    console.log('Cleaning up PeerService');
-    // Destroy all peer connections
+    console.log('Cleaning up PeerService')
     Object.values(this.peers).forEach(peer => {
       try {
-        peer.destroy();
+        peer.destroy()
       } catch (error) {
-        console.error('Error destroying peer:', error);
+        console.error('Error destroying peer:', error)
       }
-    });
-    // Clear all stored data
-    this.peers = {};
-    this.incomingFiles = {};
-    this.activeTransfers.clear();
-    this.pausedTransfers.clear();
-    this.incomingFolders = {};
-    // Disconnect from the socket
+    })
+    this.peers = {}
+    this.incomingFiles = {}
+    this.activeTransfers.clear()
+    this.pausedTransfers.clear()
     if (this.socket) {
-      this.socket.disconnect();
+      this.socket.disconnect()
     }
   }
 
   getGreekName(peerId) {
-    // Use a hash function to consistently generate an index from the peerId
     const hash = this.hashCode(peerId)
     const index = Math.abs(hash) % greekNames.length
     return greekNames[index]
   }
+
   hashCode(str) {
     let hash = 0
     for (let i = 0; i < str.length; i++) {
@@ -74,111 +72,43 @@ class PeerService {
       browser: result.browser.name || 'Unknown Browser'
     }
   }
-  
-  formatPeerName(deviceInfo) {
-    return `${deviceInfo.os} ${deviceInfo.type} (${deviceInfo.browser})`;
-  }
-  init(serverUrl) {
-    console.log('Initializing PeerService with URL:', serverUrl)
-    if (this.socket) {
-      this.socket.disconnect();
+  async getLocalIpAddress() {
+    try {
+      const response = await fetch('http://localhost:3000')
+      const text = await response.text()
+      const match = text.match(/http:\/\/([\d.]+):/)
+      return match ? match[1] : 'localhost'
+    } catch (error) {
+      console.error('Error getting local IP:', error)
+      return 'localhost'
     }
-    this.socket = io(serverUrl, {
-      transports: ['websocket'],
-      upgrade: false,
-      secure: true,
-      reconnection: true,
-      reconnectionAttempts: 5,
-      reconnectionDelay: 1000,
-      reconnectionDelayMax: 5000,
-      timeout: 20000,
-    });
-  
-    this.socket.on('connect', () => {
-      console.log('Connected to signaling server with ID:', this.socket.id);
-      this.myPeerId = this.socket.id;
-      this.myGreekName = this.getGreekName(this.myPeerId)
-      this.socket.emit('register', this.deviceInfo);
-      if (this.onPeerIdAssigned) {
-        this.onPeerIdAssigned(this.myPeerId);
-      }
-    });
-  
-    this.socket.on('connect_error', (error) => {
-      console.error('Connection error:', error);
-    });
-  
-    this.socket.on('connect_timeout', (timeout) => {
-      console.error('Connection timeout:', timeout);
-    });
-  
-    this.socket.on('error', (error) => {
-      console.error('Socket error:', error);
-    });
-  
-    this.socket.on('disconnect', (reason) => {
-      console.log('Disconnected from signaling server:', reason);
-    });
-  
-    this.socket.on('peers', (peerList) => {
-      console.log('Received list of peers:', peerList)
-      peerList.forEach(peer => this.createPeer(peer.id, true, peer.deviceInfo))
-    })
-
-    this.socket.on('peer-joined', (peer) => {
-      console.log('New peer joined:', peer)
-      this.createPeer(peer.id, false, peer.deviceInfo)
-    })
-
-    this.socket.on('peer-left', (peerId) => {
-      console.log('Peer left:', peerId)
-      if (this.peers[peerId]) {
-        this.peers[peerId].destroy()
-        delete this.peers[peerId]
-        if (this.onPeerDisconnected) {
-          this.onPeerDisconnected(peerId)
-        }
-      }
-    })
-
-    this.socket.on('signal', (data) => {
-      if (this.peers[data.peerId]) {
-        this.peers[data.peerId].signal(data.signal)
-      }
-    })
   }
-  
+
   createPeer(peerId, initiator, deviceInfo) {
     if (this.peers[peerId]) {
       console.log('Peer already exists:', peerId)
       return
     }
-  
+
     console.log('Creating peer:', peerId, 'initiator:', initiator)
     const peer = new Peer({ initiator })
-  
+
     peer.on('signal', (signal) => {
       this.socket.emit('signal', { peerId, signal })
     })
-  
+
     peer.on('connect', () => {
-      console.log('Connected to peer:', peerId);
+      console.log('Connected to peer:', peerId)
       if (this.onPeerConnected) {
         const greekName = this.getGreekName(peerId)
-        this.onPeerConnected({ 
-          id: peerId, 
-          greekName: greekName, 
-          deviceInfo: this.formatPeerName(deviceInfo) 
-        })
-        const formattedDeviceInfo = this.formatPeerName(deviceInfo);
-        this.onPeerConnected({ 
-          id: peerId, 
-          greekName: greekName, 
-          deviceInfo: formattedDeviceInfo 
+        this.onPeerConnected({
+          id: peerId,
+          greekName: greekName,
+          deviceInfo: this.formatPeerName(deviceInfo)
         })
       }
     })
-    
+
     peer.on('data', (data) => {
       this.handleIncomingData(peerId, data)
     })
@@ -190,8 +120,58 @@ class PeerService {
 
     this.peers[peerId] = peer
   }
+  formatPeerName(deviceInfo) {
+    return `${deviceInfo.os} ${deviceInfo.type} (${deviceInfo.browser})`
+  }
+  async init() {
+    console.log('Initializing PeerService')
+    const localIp = await this.getLocalIpAddress()
+    this.socket = io(`http://${localIp}:3000`, {
+      transports: ['websocket'],
+      upgrade: false
+    })
 
+    this.socket.on('connect', () => {
+      console.log('Connected to signaling server with ID:', this.socket.id)
+      this.myPeerId = this.socket.id
+      this.myGreekName = this.getGreekName(this.myPeerId)
+      this.socket.emit('join', {
+        clientId: this.myPeerId,
+        room: 'localNetwork',
+        deviceInfo: this.deviceInfo
+      })
+      if (this.onPeerIdAssigned) {
+        this.onPeerIdAssigned(this.myPeerId)
+      }
+    })
 
+    this.socket.on('peers', (peers) => {
+      console.log('Received list of peers:', peers)
+      peers.forEach(peer => this.createPeer(peer.id, true, peer.deviceInfo))
+    })
+
+    this.socket.on('peer-joined', (peer) => {
+      console.log('New peer joined:', peer)
+      this.createPeer(peer.id, false, peer.deviceInfo)
+    })
+
+    this.socket.on('peer-left', (peerId) => {
+      console.log('Peer left:', peerId)
+      if (this.onPeerDisconnected) {
+        this.onPeerDisconnected(peerId)
+      }
+    })
+
+    this.socket.on('signal', (data) => {
+      if (this.peers[data.peerId]) {
+        this.peers[data.peerId].signal(data.signal)
+      }
+    })
+
+    if (this.onRoomCreated) {
+      this.onRoomCreated('localNetwork')
+    }
+  }
   handleIncomingData(peerId, data) {
     try {
       const parsedData = JSON.parse(data.toString())

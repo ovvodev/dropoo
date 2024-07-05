@@ -1,66 +1,78 @@
 const express = require('express');
 const http = require('http');
-const WebSocket = require('ws');
-const { v4: uuidv4 } = require('uuid');
+const { Server } = require("socket.io");
+const cors = require('cors');
+const { networkInterfaces } = require('os');
 
 const app = express();
+app.use(cors());
+
 const server = http.createServer(app);
-const wss = new WebSocket.Server({ server });
-
-const rooms = new Map();
-
-wss.on('connection', (ws) => {
-  const clientId = uuidv4();
-  let clientRoom;
-
-  // Send the client their assigned ID
-  ws.send(JSON.stringify({ type: 'id-assigned', id: clientId }));
-
-  ws.on('message', (message) => {
-    const data = JSON.parse(message);
-
-    if (data.type === 'join') {
-      clientRoom = data.room;
-      if (!rooms.has(clientRoom)) {
-        rooms.set(clientRoom, new Map());
-      }
-      rooms.get(clientRoom).set(clientId, ws);
-      broadcastPeers(clientRoom);
-    } else if (data.type === 'signal') {
-      const targetWs = rooms.get(clientRoom).get(data.target);
-      if (targetWs) {
-        targetWs.send(JSON.stringify({
-          type: 'signal',
-          sender: clientId,
-          signal: data.signal
-        }));
-      }
-    }
-  });
-
-  ws.on('close', () => {
-    if (clientRoom && rooms.has(clientRoom)) {
-      rooms.get(clientRoom).delete(clientId);
-      if (rooms.get(clientRoom).size === 0) {
-        rooms.delete(clientRoom);
-      } else {
-        broadcastPeers(clientRoom);
-      }
-    }
-  });
-
-  function broadcastPeers(room) {
-    const peers = Array.from(rooms.get(room).keys());
-    rooms.get(room).forEach((clientWs) => {
-      clientWs.send(JSON.stringify({ type: 'peers', peers }));
-    });
+const io = new Server(server, {
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"]
   }
 });
 
-// Add a basic route for health checks
-app.get('/', (req, res) => {
-  res.send('Dropoo server is running');
+const rooms = new Map();
+
+function getLocalIpAddress() {
+  const nets = networkInterfaces();
+  for (const name of Object.keys(nets)) {
+    for (const net of nets[name]) {
+      if (net.family === 'IPv4' && !net.internal) {
+        return net.address;
+      }
+    }
+  }
+  return 'localhost';
+}
+
+io.on('connection', (socket) => {
+  console.log('New client connected:', socket.id);
+
+  socket.on('join', (data) => {
+    const { clientId, room, deviceInfo } = data;
+    socket.join(room);
+    if (!rooms.has(room)) {
+      rooms.set(room, new Map());
+    }
+    rooms.get(room).set(clientId, { socket, deviceInfo });
+    
+    // Notify other peers about the new peer
+    socket.to(room).emit('peer-joined', { id: clientId, deviceInfo });
+    
+    // Send list of existing peers to the new peer
+    const peers = Array.from(rooms.get(room).entries()).map(([id, { deviceInfo }]) => ({ id, deviceInfo }));
+    socket.emit('peers', peers.filter(peer => peer.id !== clientId));
+  });
+
+  socket.on('signal', (data) => {
+    const { peerId, signal } = data;
+    const peerSocket = io.sockets.sockets.get(peerId);
+    if (peerSocket) {
+      peerSocket.emit('signal', { peerId: socket.id, signal });
+    }
+  });
+
+  socket.on('disconnect', () => {
+    console.log('Client disconnected:', socket.id);
+    rooms.forEach((peers, room) => {
+      if (peers.delete(socket.id)) {
+        socket.to(room).emit('peer-left', socket.id);
+      }
+    });
+  });
 });
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+const localIp = getLocalIpAddress();
+
+app.get('/', (req, res) => {
+  res.send(`Dropoo server is running on http://${localIp}:${PORT}`);
+});
+
+server.listen(PORT, () => {
+  console.log(`Server running on http://${localIp}:${PORT}`);
+});

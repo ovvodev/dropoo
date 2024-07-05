@@ -172,7 +172,7 @@
 
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
-import PeerService from './services/PeerServices.js'
+import PeerService from './services/peer.js'
 import JSZip from 'jszip'
 import RandomAvatar from './components/RandomAvatar.vue'
 import { SunIcon, MoonIcon } from '@heroicons/vue/24/solid'
