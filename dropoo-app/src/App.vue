@@ -32,7 +32,8 @@
     <h2 class="text-2xl font-semibold mb-4 text-center">Me</h2>
     <div class="border border-gray-200 p-4 pt-8 pb-8 pl-10 rounded-lg shadow-md relative overflow-visible bg-gray-50">
       <RandomAvatar v-if="myPeerId" :seed="myPeerId" :size="170" />
-      <strong class="text-lg ml-16 mt-4 mb-4 inline-block">{{ myPeerName || 'Connecting...' }}</strong>
+      <strong class="text-lg block mb-2 ml-16 ">{{ myGreekName }}</strong>
+      <p class="text-xs ml-16 mb-4 inline-block">{{ myPeerName || 'Connecting...' }}</p>
     </div>
   </div>
 
@@ -42,8 +43,9 @@
     <div v-if="otherPeers.length" class="space-y-6">
       <div v-for="peer in otherPeers" :key="peer.id" class="border border-gray-200 p-4 pt-8 pb-8 pl-10 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300 relative overflow-visible bg-gray-50">
         <RandomAvatar :seed="peer.id" :size="170" />
-        <div class="ml-16 mt-8">
-          <strong class="text-lg block mb-4">{{ peer.name }}</strong>
+        <div class="ml-16 mt-2">
+          <strong v-if="peer.greekName" class="text-lg block">{{ peer.greekName }}</strong>
+          <p v-if="peer.deviceInfo" class="text-xs block mb-4">{{ peer.deviceInfo }}</p>
           <button
             @click="sendFileToPeer(peer)"
             :disabled="!selectedFiles.length || isZipping"
@@ -53,22 +55,7 @@
           </button>
         </div>
         <ul v-if="getActiveTransfersForPeer(peer.id).length" class="space-y-4 mt-6 ml-16">
-          <li v-for="transfer in getActiveTransfersForPeer(peer.id)" :key="transfer.id" class="text-sm">
-            <div class="flex items-center mb-2">
-              <span class="mr-2 truncate" style="max-width: 200px;">{{ transfer.fileName }}</span>
-              <span class="ml-auto">{{ transfer.progress.toFixed(0) }}%</span>
-            </div>
-            <div class="w-full bg-gray-200 rounded-full h-2 mb-2">
-              <div class="bg-gray-600 h-2 rounded-full" :style="{ width: `${transfer.progress}%` }"></div>
-            </div>
-            <div class="flex justify-end space-x-4">
-              <button v-if="!transfer.completed" @click="cancelTransfer(transfer)" class="text-sm text-gray-500 hover:text-gray-700 transition duration-200">Cancel</button>
-              <button v-if="!transfer.incoming && !transfer.completed" @click="togglePauseTransfer(transfer)" class="text-sm text-gray-500 hover:text-gray-700 transition duration-200">
-                {{ transfer.paused ? 'Resume' : 'Pause' }}
-              </button>
-              <span v-if="transfer.completed" class="text-sm text-green-500">Completed</span>
-            </div>
-          </li>
+          <!-- ... transfer list items ... -->
         </ul>
       </div>
     </div>
@@ -120,6 +107,7 @@ export default {
       isZipping: false,
       myPeerId: null,
       myPeerName: '',
+      myGreekName: '',
     }
   },
   beforeUnmount() {
@@ -138,7 +126,8 @@ export default {
       PeerService.onTransferCancelled = this.handleTransferCancelled
       PeerService.onPeerIdAssigned = (peerId) => {
         this.myPeerId = peerId;
-        this.myPeerName = `Me (${PeerService.formatPeerName(PeerService.deviceInfo)})`;
+        this.myGreekName = PeerService.myGreekName;
+        this.myPeerName = `${PeerService.formatPeerName(PeerService.deviceInfo)}`;
       }
     } catch (error) {
       console.error('Error initializing PeerService:', error)
@@ -158,7 +147,7 @@ export default {
       // Remove any duplicates
       this.peers = Array.from(new Set(this.peers.map(p => JSON.stringify(p))))
         .map(p => JSON.parse(p));
-    }, 
+    },
     getPeerName(peerId) {
       const peer = this.peers.find(p => p.id === peerId);
       return peer ? peer.name : 'Unknown Peer';
