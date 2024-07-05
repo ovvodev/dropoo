@@ -425,7 +425,7 @@ onBeforeUnmount(() => {
   width: 100vmax; /* Use vmax to cover the entire screen */
   height: 100vmax; /* Use vmax to cover the entire screen */
   opacity: 0;
-  animation: pulse 5s cubic-bezier(0.5, 0, 0.5, 1) infinite;
+  animation: pulse 6s cubic-bezier(0.5, 0, 0.5, 1) infinite;
 }
 
 .pulse-circle:nth-child(1) { animation-delay: -0s; }
