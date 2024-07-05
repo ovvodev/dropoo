@@ -42,14 +42,24 @@
 
         <!-- Received Files -->
         <div v-if="receivedFiles.length" class="mt-6">
-          <h3 class="text-lg font-semibold mb-2 dark:text-white">Received Files</h3>
+          <div class="flex justify-between items-center mb-2">
+            <h3 class="text-lg font-semibold dark:text-white">Received Files</h3>
+            <button @click="clearAllReceivedFiles" class="text-sm text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300">
+              Clear All
+            </button>
+          </div>
           <ul class="space-y-2 text-sm">
             <li v-for="file in receivedFiles" :key="`${file.peerId}-${file.fileName}`" class="flex justify-between items-center">
               <span class="truncate dark:text-gray-300" style="max-width: 200px;">{{ file.fileName }}</span>
-              <a :href="file.url" :download="file.fileName" @click="markFileAsDownloaded(file)"
-                class="border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 py-1 px-2 rounded text-xs hover:bg-gray-100 dark:hover:bg-gray-600 transition duration-200">
-                Download
-              </a>
+              <div>
+                <a :href="file.url" :download="file.fileName" @click="markFileAsDownloaded(file)" 
+                  class="mr-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 py-1 px-2 rounded text-xs hover:bg-gray-100 dark:hover:bg-gray-600 transition duration-200">
+                  Download
+                </a>
+                <button @click="clearReceivedFile(file)" class="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 text-xs">
+                  Clear
+                </button>
+              </div>
             </li>
           </ul>
         </div>
@@ -366,6 +376,16 @@ const getActiveTransfersForPeer = (peerId) => {
   )
 }
 
+//clear downloads
+const clearReceivedFile = (file) => {
+  URL.revokeObjectURL(file.url); // Free up memory
+  receivedFiles.value = receivedFiles.value.filter(f => f !== file);
+}
+
+const clearAllReceivedFiles = () => {
+  receivedFiles.value.forEach(file => URL.revokeObjectURL(file.url)); // Free up memory
+  receivedFiles.value = [];
+}
 const markFileAsDownloaded = (file) => {
   // Remove the file from receivedFiles after a short delay
   setTimeout(() => {
