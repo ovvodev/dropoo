@@ -4,17 +4,22 @@ const socketIo = require('socket.io');
 const cors = require('cors');
 
 const app = express();
-app.use(cors());
+app.use(cors({
+  origin: process.env.FRONTEND_URL || "https://dropoo.net",
+  methods: ["GET", "POST"],
+  credentials: true
+}));
 
 const server = http.createServer(app);
 const io = socketIo(server, {
   cors: {
     origin: process.env.FRONTEND_URL || "https://dropoo.net",
-    methods: ["GET", "POST"]
+    methods: ["GET", "POST"],
+    credentials: true
   }
 });
 
-const PORT = process.env.PORT || 3001;
+
 
 const connectedPeers = new Map();
 
@@ -51,5 +56,6 @@ io.on('connection', (socket) => {
 app.get('/', (req, res) => {
   res.send('Dropoo server is running');
 });
+const PORT = process.env.PORT || 3000;
 
 server.listen(PORT, '0.0.0.0', () => console.log(`Server running on port ${PORT}`));

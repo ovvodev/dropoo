@@ -84,8 +84,11 @@ class PeerService {
       // If socket exists, disconnect it before creating a new one
       this.socket.disconnect();
     }
-    this.socket = io(serverUrl)
-
+    this.socket = io(serverUrl, {
+      transports: ['websocket'],
+      upgrade: false,
+      secure: true
+    })
     this.socket.on('connect', () => {
       console.log('Connected to signaling server with ID:', this.socket.id);
       this.myPeerId = this.socket.id;
