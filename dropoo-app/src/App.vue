@@ -1,5 +1,16 @@
 <template>
-  <div class="min-h-screen py-12 flex flex-col items-center font-mono text-gray-900">
+  <div class="min-h-screen py-12 flex flex-col items-center font-mono text-gray-900 relative">
+  
+    <!-- Pulsating circles -->
+    <div class="pulse-container">
+      <div class="pulse-circle"></div>
+      <div class="pulse-circle"></div>
+      <div class="pulse-circle"></div>
+      <div class="pulse-circle"></div>
+      <div class="pulse-circle"></div>
+      <div class="pulse-circle"></div>
+    </div>
+
     <!-- Notification area -->
     <div class="fixed top-4 right-4 z-50">
       <transition-group name="fade">
@@ -387,5 +398,57 @@ onBeforeUnmount(() => {
 }
 .fade-enter, .fade-leave-to {
   opacity: 0;
+}
+
+<style>
+/* Existing styles */
+...
+
+/* Pulsating circle effect */
+.pulse-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.pulse-circle {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  border: 0.1rem solid rgba(74, 117, 162, 0.545); 
+  width: 100vmax; /* Use vmax to cover the entire screen */
+  height: 100vmax; /* Use vmax to cover the entire screen */
+  opacity: 0;
+  animation: pulse 5s cubic-bezier(0.5, 0, 0.5, 1) infinite;
+}
+
+.pulse-circle:nth-child(1) { animation-delay: -0s; }
+.pulse-circle:nth-child(2) { animation-delay: -1s; }
+.pulse-circle:nth-child(3) { animation-delay: -2s; }
+.pulse-circle:nth-child(4) { animation-delay: -3s; }
+.pulse-circle:nth-child(5) { animation-delay: -4s; }
+.pulse-circle:nth-child(6) { animation-delay: -5s; }
+
+@keyframes pulse {
+  0% {
+    transform: translate(-50%, -50%) scale(0);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 0;
+  }
+}
+
+/* Ensure content is above the pulse effect */
+.relative > *:not(.pulse-container) {
+  position: relative;
+  z-index: 1;
 }
 </style>
