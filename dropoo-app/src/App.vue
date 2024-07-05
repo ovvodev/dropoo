@@ -26,31 +26,33 @@
         {{ isZipping ? 'Zipping Files...' : 'Send to All' }}
       </button>
     </div>
+  
   <!-- Me Section -->
   <div class="w-full max-w-md mb-6">
-        <h2 class="text-2xl font-semibold mb-4 text-center">Me</h2>
-        <div class="border border-gray-200 p-6 rounded-lg shadow-md flex items-center">
-          <PeerAvatar v-if="myPeerId" :seed="myPeerId" />
-          <strong class="text-lg ml-4">{{ myPeerName || 'Connecting...' }}</strong>
-        </div>
+    <h2 class="text-2xl font-semibold mb-4 text-center">Me</h2>
+    <div class="border border-gray-200 p-6 rounded-lg shadow-md relative overflow-hidden">
+      <RandomAvatar v-if="myPeerId" :seed="myPeerId" :size="150" />
+      <strong class="text-lg ml-24 mt-20 inline-block">{{ myPeerName || 'Connecting...' }}</strong>
     </div>
-   <!-- Connected Peers and Transfers -->
-   <div class="w-full max-w-md mb-10">
-      <h2 class="text-2xl font-semibold mb-6 text-center">Connected Peers</h2>
-      <div v-if="otherPeers.length" class="space-y-6">
-        <div v-for="peer in otherPeers" :key="peer.id" class="border border-gray-200 p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300">
-          <div class="flex items-center mb-4">
-            <PeerAvatar :seed="peer.id" />
-            <strong class="text-lg ml-4">{{ peer.name }}</strong>
-            <button
-              @click="sendFileToPeer(peer)"
-              :disabled="!selectedFiles.length || isZipping"
-              class="border border-gray-300 text-gray-700 py-2 px-4 rounded text-sm hover:bg-gray-100 disabled:opacity-50 transition duration-200"
-            >
-              {{ isZipping ? 'Zipping...' : 'Send' }}
-            </button>
-          </div>
-          <ul v-if="getActiveTransfersForPeer(peer.id).length" class="space-y-4">
+  </div>
+
+  <!-- Connected Peers and Transfers -->
+  <div class="w-full max-w-md mb-10">
+    <h2 class="text-2xl font-semibold mb-6 text-center">Connected Peers</h2>
+    <div v-if="otherPeers.length" class="space-y-6">
+      <div v-for="peer in otherPeers" :key="peer.id" class="border border-gray-200 p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300 relative overflow-hidden">
+        <RandomAvatar :seed="peer.id" :size="150" />
+        <div class="ml-24 mt-20">
+          <strong class="text-lg block mb-2">{{ peer.name }}</strong>
+          <button
+            @click="sendFileToPeer(peer)"
+            :disabled="!selectedFiles.length || isZipping"
+            class="border border-gray-300 text-gray-700 py-2 px-4 rounded text-sm hover:bg-gray-100 disabled:opacity-50 transition duration-200"
+          >
+            {{ isZipping ? 'Zipping...' : 'Send' }}
+          </button>
+        </div>
+        <ul v-if="getActiveTransfersForPeer(peer.id).length" class="space-y-4 mt-4">
             <li v-for="transfer in getActiveTransfersForPeer(peer.id)" :key="transfer.id" class="text-sm">
               <div class="flex items-center mb-2">
                 <span class="mr-2 truncate" style="max-width: 200px;">{{ transfer.fileName }}</span>
@@ -101,12 +103,12 @@
 <script>
 import PeerService from './services/peer'
 import JSZip from 'jszip';
-import PeerAvatar from './components/PeerAvatar'
+import RandomAvatar from './components/RandomAvatar.vue'
 
 export default {
   name: 'App',
   components: {
-    PeerAvatar,
+    RandomAvatar,
   },
   data() {
     return {
@@ -339,5 +341,18 @@ export default {
   text-align: center;
   color: #2c3e50;
   margin-top: 60px;
+}
+
+.peer-card {
+  /* Your existing styles */
+  padding: 20px;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.5rem;
+}
+
+.peer-info {
+  /* Adjust these margins as needed to prevent overlap with the avatar */
+  margin-left: 5rem; /* 20px / 4px per rem = 5rem */
+  margin-top: 5rem;
 }
 </style>
