@@ -39,10 +39,10 @@
         width: `${props.size}px`,
         height: `${props.size}px`,
         position: 'absolute',
-        top: `-${props.size / 4}px`,
-        left: `-${props.size / 4}px`,
+        top: `-${props.size / 12}px`,  
+        left: `-${props.size / 3}px`, 
         zIndex: 10
-      }))
+    }))
   
       function hashCode(str) {
         let hash = 0
@@ -71,5 +71,7 @@
     overflow: hidden;
     border-radius: 50%;
   }
+
+
   </style>
   

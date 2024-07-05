@@ -30,9 +30,9 @@
   <!-- Me Section -->
   <div class="w-full max-w-md mb-6">
     <h2 class="text-2xl font-semibold mb-4 text-center">Me</h2>
-    <div class="border border-gray-200 p-6 rounded-lg shadow-md relative overflow-hidden">
+    <div class="border border-gray-200 p-4 pt-8 pl-10 rounded-lg shadow-md relative overflow-visible">
       <RandomAvatar v-if="myPeerId" :seed="myPeerId" :size="150" />
-      <strong class="text-lg ml-24 mt-20 inline-block">{{ myPeerName || 'Connecting...' }}</strong>
+      <strong class="text-lg ml-16 mt-12 inline-block">{{ myPeerName || 'Connecting...' }}</strong>
     </div>
   </div>
 
@@ -40,9 +40,9 @@
   <div class="w-full max-w-md mb-10">
     <h2 class="text-2xl font-semibold mb-6 text-center">Connected Peers</h2>
     <div v-if="otherPeers.length" class="space-y-6">
-      <div v-for="peer in otherPeers" :key="peer.id" class="border border-gray-200 p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300 relative overflow-hidden">
+      <div v-for="peer in otherPeers" :key="peer.id" class="border border-gray-200 p-4 pt-8 pl-10 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300 relative overflow-visible">
         <RandomAvatar :seed="peer.id" :size="150" />
-        <div class="ml-24 mt-20">
+        <div class="ml-12 mt-8">
           <strong class="text-lg block mb-2">{{ peer.name }}</strong>
           <button
             @click="sendFileToPeer(peer)"
@@ -343,16 +343,5 @@ export default {
   margin-top: 60px;
 }
 
-.peer-card {
-  /* Your existing styles */
-  padding: 20px;
-  border: 1px solid #e2e8f0;
-  border-radius: 0.5rem;
-}
 
-.peer-info {
-  /* Adjust these margins as needed to prevent overlap with the avatar */
-  margin-left: 5rem; /* 20px / 4px per rem = 5rem */
-  margin-top: 5rem;
-}
 </style>
