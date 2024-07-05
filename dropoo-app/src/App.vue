@@ -144,8 +144,8 @@
     </p>
     <p class="mb-2">
       Avatars by 
-      <a href="https://github.com/RobertBroersma/bigheads" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline">
-        Bigheads
+      <a href="https://beanheads.robertbroersma.com" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline">
+        Beanheads
       </a>
     </p>
   </footer>
