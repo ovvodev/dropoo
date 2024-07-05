@@ -9,15 +9,22 @@ app.use(cors({
   methods: ["GET", "POST"],
   credentials: true
 }));
+app.get('/', (req, res) => {
+  res.send('Dropoo server is running');
+});
 
 const server = http.createServer(app);
 const io = socketIo(server, {
   cors: {
     origin: process.env.FRONTEND_URL || "https://dropoo.net",
     methods: ["GET", "POST"],
-    credentials: true
-  }
+    credentials: true,
+    allowedHeaders: ["my-custom-header"]
+  },
+  allowEIO3: true,
+  transports: ['websocket', 'polling']
 });
+
 
 
 

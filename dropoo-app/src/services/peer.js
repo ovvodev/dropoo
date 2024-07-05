@@ -79,16 +79,21 @@ class PeerService {
     return `${deviceInfo.os} ${deviceInfo.type} (${deviceInfo.browser})`;
   }
   init(serverUrl) {
-    console.log('Initializing PeerService')
+    console.log('Initializing PeerService with URL:', serverUrl)
     if (this.socket) {
-      // If socket exists, disconnect it before creating a new one
       this.socket.disconnect();
     }
     this.socket = io(serverUrl, {
       transports: ['websocket'],
       upgrade: false,
-      secure: true
-    })
+      secure: true,
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
+      timeout: 20000,
+    });
+  
     this.socket.on('connect', () => {
       console.log('Connected to signaling server with ID:', this.socket.id);
       this.myPeerId = this.socket.id;
@@ -97,12 +102,24 @@ class PeerService {
       if (this.onPeerIdAssigned) {
         this.onPeerIdAssigned(this.myPeerId);
       }
-    })
+    });
+  
+    this.socket.on('connect_error', (error) => {
+      console.error('Connection error:', error);
+    });
+  
+    this.socket.on('connect_timeout', (timeout) => {
+      console.error('Connection timeout:', timeout);
+    });
+  
+    this.socket.on('error', (error) => {
+      console.error('Socket error:', error);
+    });
+  
     this.socket.on('disconnect', (reason) => {
       console.log('Disconnected from signaling server:', reason);
-      // Clean up existing peer connections
-      Object.keys(this.peers).forEach(this.handlePeerDisconnection.bind(this));
-    })
+    });
+  
     this.socket.on('peers', (peerList) => {
       console.log('Received list of peers:', peerList)
       peerList.forEach(peer => this.createPeer(peer.id, true, peer.deviceInfo))
