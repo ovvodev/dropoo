@@ -172,13 +172,13 @@
 
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
-import PeerService from './services/PeerService'
+import PeerService from './services/PeerServices.js'
 import JSZip from 'jszip'
 import RandomAvatar from './components/RandomAvatar.vue'
 import { SunIcon, MoonIcon } from '@heroicons/vue/24/solid'
 
 
-const serverUrl = process.env.VUE_APP_SERVER_URL || 'https://dropoo-backend.fly.dev'
+
 
 
 // Reactive state
