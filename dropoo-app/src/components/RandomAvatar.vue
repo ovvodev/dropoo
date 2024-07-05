@@ -16,7 +16,7 @@
       },
       size: {
         type: Number,
-        default: 150 // Increased from 50 to 150
+        default: 170 // Increased from 50 to 150
       }
     },
     setup(props) {
@@ -39,7 +39,7 @@
         width: `${props.size}px`,
         height: `${props.size}px`,
         position: 'absolute',
-        top: `-${props.size / 12}px`,  
+        top: `-${props.size / 5}px`,  
         left: `-${props.size / 3}px`, 
         zIndex: 10
     }))

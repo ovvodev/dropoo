@@ -30,9 +30,9 @@
   <!-- Me Section -->
   <div class="w-full max-w-md mb-6">
     <h2 class="text-2xl font-semibold mb-4 text-center">Me</h2>
-    <div class="border border-gray-200 p-4 pt-8 pl-10 rounded-lg shadow-md relative overflow-visible">
-      <RandomAvatar v-if="myPeerId" :seed="myPeerId" :size="150" />
-      <strong class="text-lg ml-16 mt-12 inline-block">{{ myPeerName || 'Connecting...' }}</strong>
+    <div class="border border-gray-200 p-4 pt-8 pb-8 pl-10 rounded-lg shadow-md relative overflow-visible bg-gray-50">
+      <RandomAvatar v-if="myPeerId" :seed="myPeerId" :size="170" />
+      <strong class="text-lg ml-16 mt-4 mb-4 inline-block">{{ myPeerName || 'Connecting...' }}</strong>
     </div>
   </div>
 
@@ -40,10 +40,10 @@
   <div class="w-full max-w-md mb-10">
     <h2 class="text-2xl font-semibold mb-6 text-center">Connected Peers</h2>
     <div v-if="otherPeers.length" class="space-y-6">
-      <div v-for="peer in otherPeers" :key="peer.id" class="border border-gray-200 p-4 pt-8 pl-10 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300 relative overflow-visible">
-        <RandomAvatar :seed="peer.id" :size="150" />
-        <div class="ml-12 mt-8">
-          <strong class="text-lg block mb-2">{{ peer.name }}</strong>
+      <div v-for="peer in otherPeers" :key="peer.id" class="border border-gray-200 p-4 pt-8 pb-8 pl-10 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300 relative overflow-visible bg-gray-50">
+        <RandomAvatar :seed="peer.id" :size="170" />
+        <div class="ml-16 mt-8">
+          <strong class="text-lg block mb-4">{{ peer.name }}</strong>
           <button
             @click="sendFileToPeer(peer)"
             :disabled="!selectedFiles.length || isZipping"
@@ -52,28 +52,28 @@
             {{ isZipping ? 'Zipping...' : 'Send' }}
           </button>
         </div>
-        <ul v-if="getActiveTransfersForPeer(peer.id).length" class="space-y-4 mt-4">
-            <li v-for="transfer in getActiveTransfersForPeer(peer.id)" :key="transfer.id" class="text-sm">
-              <div class="flex items-center mb-2">
-                <span class="mr-2 truncate" style="max-width: 200px;">{{ transfer.fileName }}</span>
-                <span class="ml-auto">{{ transfer.progress.toFixed(0) }}%</span>
-              </div>
-              <div class="w-full bg-gray-200 rounded-full h-2 mb-2">
-                <div class="bg-gray-600 h-2 rounded-full" :style="{ width: `${transfer.progress}%` }"></div>
-              </div>
-              <div class="flex justify-end space-x-4">
-                <button v-if="!transfer.completed" @click="cancelTransfer(transfer)" class="text-sm text-gray-500 hover:text-gray-700 transition duration-200">Cancel</button>
-                <button v-if="!transfer.incoming && !transfer.completed" @click="togglePauseTransfer(transfer)" class="text-sm text-gray-500 hover:text-gray-700 transition duration-200">
-                  {{ transfer.paused ? 'Resume' : 'Pause' }}
-                </button>
-                <span v-if="transfer.completed" class="text-sm text-green-500">Completed</span>
-              </div>
-            </li>
-          </ul>
-        </div>
+        <ul v-if="getActiveTransfersForPeer(peer.id).length" class="space-y-4 mt-6 ml-16">
+          <li v-for="transfer in getActiveTransfersForPeer(peer.id)" :key="transfer.id" class="text-sm">
+            <div class="flex items-center mb-2">
+              <span class="mr-2 truncate" style="max-width: 200px;">{{ transfer.fileName }}</span>
+              <span class="ml-auto">{{ transfer.progress.toFixed(0) }}%</span>
+            </div>
+            <div class="w-full bg-gray-200 rounded-full h-2 mb-2">
+              <div class="bg-gray-600 h-2 rounded-full" :style="{ width: `${transfer.progress}%` }"></div>
+            </div>
+            <div class="flex justify-end space-x-4">
+              <button v-if="!transfer.completed" @click="cancelTransfer(transfer)" class="text-sm text-gray-500 hover:text-gray-700 transition duration-200">Cancel</button>
+              <button v-if="!transfer.incoming && !transfer.completed" @click="togglePauseTransfer(transfer)" class="text-sm text-gray-500 hover:text-gray-700 transition duration-200">
+                {{ transfer.paused ? 'Resume' : 'Pause' }}
+              </button>
+              <span v-if="transfer.completed" class="text-sm text-green-500">Completed</span>
+            </div>
+          </li>
+        </ul>
       </div>
-      <p v-else class="text-center text-gray-500">No other peers connected</p>
     </div>
+    <p v-else class="text-center text-gray-500">No other peers connected</p>
+  </div>
 
     <!-- Received Files -->
     <div v-if="receivedFiles.length" class="w-full max-w-md mb-10">
