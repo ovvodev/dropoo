@@ -340,7 +340,7 @@ class PeerService {
       fileSize: file.size,
       fileType: file.type
     }));
-  
+    
     fileReader.onerror = () => {
       this.handleError(peerId, filePath || file.name, 'Error reading file');
       this.activeTransfers.delete(transferId);

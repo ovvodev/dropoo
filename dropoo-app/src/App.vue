@@ -51,29 +51,27 @@
     
     <!-- File selection -->
     <div class="mb-10 flex space-x-4">
-      <input
-        type="file"
-        ref="fileInput"
-        @change="onItemsSelected"
-        multiple
-        webkitdirectory
-        class="hidden"
-      >
-      <button 
-        @click="triggerFileInput"
-        class="border border-gray-300 text-gray-700 py-2 px-6 rounded hover:bg-gray-100 transition duration-200"
-      >
-        Select Files
-      </button>
-      <button 
-        @click="sendFileToAllPeers" 
-        :disabled="!selectedFiles.length || !otherPeers.length || isZipping"
-        class="border border-gray-300 text-gray-700 py-2 px-6 rounded hover:bg-gray-100 disabled:opacity-50 transition duration-200"
-      >
-        {{ isZipping ? 'Zipping Files...' : 'Send to All' }}
-      </button>
-    </div>
-
+    <input
+      type="file"
+      ref="fileInput"
+      @change="onItemsSelected"
+      multiple
+      class="hidden"
+    >
+    <button 
+      @click="triggerFileInput"
+      class="border border-gray-300 text-gray-700 py-2 px-6 rounded hover:bg-gray-100 transition duration-200"
+    >
+      Select Files
+    </button>
+    <button 
+      @click="sendFileToAllPeers" 
+      :disabled="!selectedFiles.length || !otherPeers.length || isZipping"
+      class="border border-gray-300 text-gray-700 py-2 px-6 rounded hover:bg-gray-100 disabled:opacity-50 transition duration-200"
+    >
+      {{ isZipping ? 'Zipping Files...' : 'Send to All' }}
+    </button>
+  </div>
     <!-- Connected Peers and Transfers -->
     <div class="w-full max-w-md mb-10">
       <h2 class="text-2xl font-semibold mb-6 text-center">Connected Peers</h2>
