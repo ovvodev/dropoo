@@ -1,6 +1,10 @@
 <template>
+
+  <div class="w-full flex flex-col items-center font-mono text-gray-900 relative">
+    <h6 class="text-xs pb-5 text-center">simple peer to peer file transfer app</h6>
+
+  </div>
   <div class="min-h-screen py-12 flex flex-col items-center font-mono text-gray-900 relative">
-  
     <!-- Pulsating circles -->
     <div class="pulse-container">
       <div class="pulse-circle"></div>
@@ -21,9 +25,9 @@
         </div>
       </transition-group>
     </div>
-
+   
     <!-- Header -->
-    <h1 class="text-3xl font-semibold mb-10">Dropoo</h1>
+    <h1 class="text-3xl font-semibold mb-10">Droppo</h1>
     
     <!-- Me Section -->
     <div class="w-full max-w-md mb-6">
@@ -123,6 +127,28 @@
       </ul>
     </div>
   </div>
+
+  <!-- Footer -->
+  <footer class="w-full flex flex-col items-center font-mono text-gray-900 relative text-xs mb-2">
+    <p class="mb-2">Cretaed with: Vue.js, WebRTC, Socket.io, Tailwind CSS</p>
+   
+    <p>
+      Created by 
+      <a href="https://github.com/ovvodev" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline">
+
+      </a> 
+      | 
+      <a href="https://ovvo.dev" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline">
+        ovvo.dev
+      </a>
+    </p>
+    <p class="mb-2">
+      Avatars by 
+      <a href="https://github.com/RobertBroersma/bigheads" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline">
+        Bigheads
+      </a>
+    </p>
+  </footer>
 </template>
 
 
@@ -402,9 +428,7 @@ onBeforeUnmount(() => {
   opacity: 0;
 }
 
-<style>
-/* Existing styles */
-...
+
 
 /* Pulsating circle effect */
 .pulse-container {
