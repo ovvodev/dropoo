@@ -132,6 +132,10 @@ import PeerService from './services/peer'
 import JSZip from 'jszip'
 import RandomAvatar from './components/RandomAvatar.vue'
 
+
+const serverUrl = process.env.VUE_APP_SERVER_URL || 'https://your-backend-url.fly.dev'
+
+
 // Reactive state
 const selectedFiles = ref([])
 const peers = ref([])
@@ -357,7 +361,7 @@ const handleError = (peerId, fileName, message) => {
 onMounted(() => {
   console.log('App mounted, initializing PeerService')
   try {
-    PeerService.init()
+    PeerService.init(serverUrl)
     PeerService.onPeerConnected = addPeer
     PeerService.onPeerDisconnected = handlePeerDisconnected
     PeerService.onFileProgress = updateFileProgress

@@ -14,5 +14,8 @@
     "cors": "^2.8.5",
     "express": "^4.19.2",
     "socket.io": "^4.7.5"
+  },
+  "devDependencies": {
+    "@flydotio/dockerfile": "^0.5.7"
   }
 }

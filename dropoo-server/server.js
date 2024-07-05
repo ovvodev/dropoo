@@ -9,7 +9,7 @@ app.use(cors());
 const server = http.createServer(app);
 const io = socketIo(server, {
   cors: {
-    origin: "*",
+    origin: process.env.FRONTEND_URL || "https://dropoo.net",
     methods: ["GET", "POST"]
   }
 });
@@ -47,4 +47,9 @@ io.on('connection', (socket) => {
   });
 });
 
-server.listen(3001, '0.0.0.0', () => console.log('Server running on port 3001'));
+// Add a basic route for health checks
+app.get('/', (req, res) => {
+  res.send('Dropoo server is running');
+});
+
+server.listen(PORT, '0.0.0.0', () => console.log(`Server running on port ${PORT}`));

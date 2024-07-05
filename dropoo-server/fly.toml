@@ -1,0 +1,23 @@
+# fly.toml app configuration file generated for dropoo-backend on 2024-07-05T17:26:04+02:00
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
+app = 'dropoo-backend'
+
+[build]
+
+[env]
+  FRONTEND_URL = 'https://dropoo.net'
+  PORT = '8080'
+
+[http_service]
+  internal_port = 3000
+  force_https = true
+  auto_stop_machines = true
+  auto_start_machines = true
+
+[[vm]]
+  memory = '1gb'
+  cpu_kind = 'shared'
+  cpus = 1

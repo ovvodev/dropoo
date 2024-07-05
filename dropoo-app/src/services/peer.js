@@ -78,13 +78,13 @@ class PeerService {
   formatPeerName(deviceInfo) {
     return `${deviceInfo.os} ${deviceInfo.type} (${deviceInfo.browser})`;
   }
-  init() {
+  init(serverUrl) {
     console.log('Initializing PeerService')
     if (this.socket) {
       // If socket exists, disconnect it before creating a new one
       this.socket.disconnect();
     }
-    this.socket = io('http://192.168.8.134:3001')
+    this.socket = io(serverUrl)
 
     this.socket.on('connect', () => {
       console.log('Connected to signaling server with ID:', this.socket.id);
