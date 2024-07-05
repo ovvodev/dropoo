@@ -133,7 +133,7 @@ import JSZip from 'jszip'
 import RandomAvatar from './components/RandomAvatar.vue'
 
 
-const serverUrl = process.env.VUE_APP_SERVER_URL || 'https://your-backend-url.fly.dev'
+const serverUrl = process.env.VUE_APP_SERVER_URL || 'https://dropoo-backend.fly.dev'
 
 
 // Reactive state
