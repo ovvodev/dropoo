@@ -23,7 +23,7 @@ class PeerService {
     this.deviceInfo = this.getDeviceInfo()
     this.myPeerId = null
     this.peerNames = new Map();
-    this.myGreekName = this.getRandomGreekName()
+    this.myGreekName = null
     this.incomingFolders = {}
     console.log("Device info:", this.deviceInfo)
   }
@@ -49,8 +49,21 @@ class PeerService {
     }
   }
 
-  
-
+  getGreekName(peerId) {
+    // Use a hash function to consistently generate an index from the peerId
+    const hash = this.hashCode(peerId)
+    const index = Math.abs(hash) % greekNames.length
+    return greekNames[index]
+  }
+  hashCode(str) {
+    let hash = 0
+    for (let i = 0; i < str.length; i++) {
+      const char = str.charCodeAt(i)
+      hash = ((hash << 5) - hash) + char
+      hash = hash & hash // Convert to 32bit integer
+    }
+    return hash
+  }
   getDeviceInfo() {
     const parser = new UAParser()
     const result = parser.getResult()
@@ -61,10 +74,7 @@ class PeerService {
       browser: result.browser.name || 'Unknown Browser'
     }
   }
-  getRandomGreekName() {
-    return greekNames[Math.floor(Math.random() * greekNames.length)];
-  }
-
+  
   formatPeerName(deviceInfo) {
     return `${deviceInfo.os} ${deviceInfo.type} (${deviceInfo.browser})`;
   }
@@ -79,6 +89,7 @@ class PeerService {
     this.socket.on('connect', () => {
       console.log('Connected to signaling server with ID:', this.socket.id);
       this.myPeerId = this.socket.id;
+      this.myGreekName = this.getGreekName(this.myPeerId)
       this.socket.emit('register', this.deviceInfo);
       if (this.onPeerIdAssigned) {
         this.onPeerIdAssigned(this.myPeerId);
@@ -133,11 +144,12 @@ class PeerService {
     peer.on('connect', () => {
       console.log('Connected to peer:', peerId);
       if (this.onPeerConnected) {
-        let greekName = this.peerNames.get(peerId);
-        if (!greekName) {
-          greekName = this.getRandomGreekName();
-          this.peerNames.set(peerId, greekName);
-        }
+        const greekName = this.getGreekName(peerId)
+        this.onPeerConnected({ 
+          id: peerId, 
+          greekName: greekName, 
+          deviceInfo: this.formatPeerName(deviceInfo) 
+        })
         const formattedDeviceInfo = this.formatPeerName(deviceInfo);
         this.onPeerConnected({ 
           id: peerId, 
