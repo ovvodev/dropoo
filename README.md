@@ -22,3 +22,20 @@ The project is on-progres
 - Deployment: Fly.io
 
 
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Acknowledgments
+
+- Avatars by [Beanheads](https://beanheads.robertbroersma.com)
+
+## Contact
+
+Created by [ovvodev](https://github.com/ovvodev) - feel free to contact me!
+
+Project Link: [https://github.com/ovvodev/dropoo](https://github.com/ovvodev/dropoo)
