@@ -9,9 +9,6 @@ app.use(cors({
   methods: ["GET", "POST"],
   credentials: true
 }));
-app.get('/', (req, res) => {
-  res.send('Dropoo server is running');
-});
 
 const server = http.createServer(app);
 const io = socketIo(server, {
@@ -25,26 +22,42 @@ const io = socketIo(server, {
   transports: ['websocket', 'polling']
 });
 
+const rooms = new Map();
 
-
-
-const connectedPeers = new Map();
+function getClientIp(socket) {
+  return socket.handshake.headers['x-forwarded-for'] || socket.handshake.address;
+}
 
 io.on('connection', (socket) => {
-  console.log('New client connected:', socket.id);
+  const clientIp = getClientIp(socket);
+  console.log('New client connected:', socket.id, 'from IP:', clientIp);
 
   socket.on('register', (deviceInfo) => {
-    connectedPeers.set(socket.id, deviceInfo);
-    
-    // Send the new peer info to all other clients
-    socket.broadcast.emit('peer-joined', { id: socket.id, deviceInfo });
+    const roomId = clientIp;
+    socket.join(roomId);
 
-    // Send the new peer a list of all connected peers
-    const peerList = Array.from(connectedPeers.entries()).map(([id, info]) => ({ id, deviceInfo: info }));
+    if (!rooms.has(roomId)) {
+      rooms.set(roomId, new Map());
+    }
+    const room = rooms.get(roomId);
+
+    const peerInfo = {
+      id: socket.id,
+      deviceInfo: deviceInfo
+    };
+
+    room.set(socket.id, peerInfo);
+
+    // Send the new peer info to all other clients in the same room
+    socket.to(roomId).emit('peer-joined', peerInfo);
+
+    // Send the new peer a list of all connected peers in the same room
+    const peerList = Array.from(room.values());
     socket.emit('peers', peerList.filter(peer => peer.id !== socket.id));
   });
 
   socket.on('signal', (data) => {
+    const roomId = clientIp;
     console.log('Signal received from', socket.id, 'for', data.peerId);
     io.to(data.peerId).emit('signal', {
       peerId: socket.id,
@@ -53,16 +66,24 @@ io.on('connection', (socket) => {
   });
 
   socket.on('disconnect', () => {
+    const roomId = clientIp;
     console.log('Client disconnected:', socket.id);
-    connectedPeers.delete(socket.id);
-    io.emit('peer-left', socket.id);
+    if (rooms.has(roomId)) {
+      const room = rooms.get(roomId);
+      room.delete(socket.id);
+      if (room.size === 0) {
+        rooms.delete(roomId);
+      } else {
+        io.to(roomId).emit('peer-left', socket.id);
+      }
+    }
   });
 });
 
-// Add a basic route for health checks
 app.get('/', (req, res) => {
   res.send('Dropoo server is running');
 });
+
 const PORT = process.env.PORT || 3000;
 
 server.listen(PORT, '0.0.0.0', () => console.log(`Server running on port ${PORT}`));
