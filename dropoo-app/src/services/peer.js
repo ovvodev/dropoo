@@ -45,7 +45,7 @@ class PeerService {
     this.incomingFolders = {};
     // Disconnect from the socket
     if (this.socket) {
-      this.socket.disconnect();
+      this.socket.close();
     }
   }
 
@@ -81,73 +81,54 @@ class PeerService {
   init(serverUrl) {
     console.log('Initializing PeerService with URL:', serverUrl)
     if (this.socket) {
-      this.socket.disconnect();
+      this.socket.close();
     }
-    this.socket = io(serverUrl, {
-      transports: ['websocket'],
-      upgrade: false,
-      secure: true,
-      reconnection: true,
-      reconnectionAttempts: 5,
-      reconnectionDelay: 1000,
-      reconnectionDelayMax: 5000,
-      timeout: 20000,
-    });
-  
-    this.socket.on('connect', () => {
-      console.log('Connected to signaling server with ID:', this.socket.id);
-      this.myPeerId = this.socket.id;
-      this.myGreekName = this.getGreekName(this.myPeerId)
-      this.socket.emit('register', this.deviceInfo);
-      if (this.onPeerIdAssigned) {
-        this.onPeerIdAssigned(this.myPeerId);
-      }
-    });
-  
-    this.socket.on('connect_error', (error) => {
-      console.error('Connection error:', error);
-    });
-  
-    this.socket.on('connect_timeout', (timeout) => {
-      console.error('Connection timeout:', timeout);
-    });
-  
-    this.socket.on('error', (error) => {
-      console.error('Socket error:', error);
-    });
-  
-    this.socket.on('disconnect', (reason) => {
-      console.log('Disconnected from signaling server:', reason);
-    });
-  
-    this.socket.on('peers', (peerList) => {
-      console.log('Received list of peers:', peerList)
-      peerList.forEach(peer => this.createPeer(peer.id, true, peer.deviceInfo))
-    })
+    this.socket = new WebSocket(serverUrl);
 
-    this.socket.on('peer-joined', (peer) => {
-      console.log('New peer joined:', peer)
-      this.createPeer(peer.id, false, peer.deviceInfo)
-    })
+    this.socket.onopen = () => {
+      console.log('Connected to signaling server');
+      this.socket.send(JSON.stringify({
+        type: 'register',
+        deviceInfo: this.deviceInfo
+      }));
+    };
 
-    this.socket.on('peer-left', (peerId) => {
-      console.log('Peer left:', peerId)
-      if (this.peers[peerId]) {
-        this.peers[peerId].destroy()
-        delete this.peers[peerId]
-        if (this.onPeerDisconnected) {
-          this.onPeerDisconnected(peerId)
-        }
-      }
-    })
+    this.socket.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      this.handleServerMessage(data);
+    };
 
-    this.socket.on('signal', (data) => {
-      if (this.peers[data.peerId]) {
-        this.peers[data.peerId].signal(data.signal)
-      }
-    })
+    this.socket.onerror = (error) => {
+      console.error('WebSocket error:', error);
+    };
+
+    this.socket.onclose = (event) => {
+      console.log('Disconnected from signaling server:', event.reason);
+    };
   }
-  
+
+  handleServerMessage(data) {
+    switch(data.type) {
+      case 'peers':
+        console.log('Received list of peers:', data.peers);
+        data.peers.forEach(peer => this.createPeer(peer.id, true, peer.deviceInfo));
+        break;
+      case 'peer-joined':
+        console.log('New peer joined:', data.peer);
+        this.createPeer(data.peer.id, false, data.peer.deviceInfo);
+        break;
+      case 'peer-left':
+        console.log('Peer left:', data.peerId);
+        this.handlePeerDisconnection(data.peerId);
+        break;
+      case 'signal':
+        if (this.peers[data.from]) {
+          this.peers[data.from].signal(data.signal);
+        }
+        break;
+    }
+  }
+
   createPeer(peerId, initiator, deviceInfo) {
     if (this.peers[peerId]) {
       console.log('Peer already exists:', peerId)
@@ -158,9 +139,12 @@ class PeerService {
     const peer = new Peer({ initiator })
   
     peer.on('signal', (signal) => {
-      this.socket.emit('signal', { peerId, signal })
-    })
-  
+      this.socket.send(JSON.stringify({
+        type: 'signal',
+        to: peerId,
+        signal: signal
+      }));
+    });
     peer.on('connect', () => {
       console.log('Connected to peer:', peerId);
       if (this.onPeerConnected) {

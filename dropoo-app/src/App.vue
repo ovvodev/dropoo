@@ -430,7 +430,8 @@ onMounted(() => {
   isDarkTheme.value = savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)
   applyTheme()
   try {
-    PeerService.init(serverUrl)
+    const wsServerUrl = serverUrl.replace('https://', 'wss://').replace('http://', 'ws://');
+    PeerService.init(wsServerUrl)
     PeerService.onPeerConnected = addPeer
     PeerService.onPeerDisconnected = handlePeerDisconnected
     PeerService.onFileProgress = updateFileProgress

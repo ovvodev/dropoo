@@ -29,7 +29,6 @@ class DropooServer {
 
     _onConnection(peer) {
         console.log('New client connected:', peer.id, 'from IP:', peer.ip);
-        this._joinRoom(peer);
         peer.socket.on('message', message => this._onMessage(peer, message));
         peer.socket.on('close', () => this._leaveRoom(peer));
         this._keepAlive(peer);
@@ -87,6 +86,10 @@ class DropooServer {
         }
 
         switch (message.type) {
+            case 'register':
+                sender.deviceInfo = message.deviceInfo;
+                this._joinRoom(sender);
+                break;
             case 'signal':
                 this._forwardSignal(sender, message);
                 break;
@@ -131,26 +134,16 @@ class Peer {
         this.socket = socket;
         this.id = Peer.uuid();
         this._setIP(request);
-        this.deviceInfo = this._getDeviceInfo(request);
+        this.deviceInfo = null; // Will be set when 'register' message is received
         this.lastBeat = Date.now();
     }
 
     _setIP(request) {
-        this.ip = request.headers['x-forwarded-for'] || 
+        this.ip = request.headers['x-forwarded-for'] ||
                   request.connection.remoteAddress;
         if (this.ip === '::1' || this.ip === '::ffff:127.0.0.1') {
             this.ip = '127.0.0.1';
         }
-    }
-
-    _getDeviceInfo(request) {
-        const ua = parser(request.headers['user-agent']);
-        return {
-            os: ua.os.name || 'Unknown OS',
-            type: ua.device.type || 'Desktop',
-            model: ua.device.model || '',
-            browser: ua.browser.name || 'Unknown Browser'
-        };
     }
 
     getInfo() {
