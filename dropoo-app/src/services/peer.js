@@ -1,7 +1,6 @@
 // src/services/peer.js
 
 import Peer from 'simple-peer'
-import UAParser from 'ua-parser-js'
 import JSZip from 'jszip'
 
 
