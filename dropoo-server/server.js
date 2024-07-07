@@ -49,12 +49,20 @@ class DropooServer {
   }
 
   _getRoom(ip) {
-    const subnet = ip.split('.').slice(0, 3).join('.');
+    let subnet;
+    if (ip.includes(':')) {
+      // IPv6 address
+      subnet = ip.split(':').slice(0, 4).join(':');
+    } else {
+      // IPv4 address
+      subnet = ip.split('.').slice(0, 3).join('.');
+    }
     if (!this._rooms[subnet]) {
       this._rooms[subnet] = {};
     }
     return this._rooms[subnet];
   }
+  
 
   _joinRoom(peer) {
     console.log('Joining room for peer:', peer.toString());
@@ -177,12 +185,13 @@ class Peer {
   }
 
   _setIP(request) {
-    this.ip = request.headers['x-forwarded-for'] ||
-              request.connection.remoteAddress;
+    const forwardedFor = request.headers['x-forwarded-for'];
+    this.ip = forwardedFor ? forwardedFor.split(',')[0].trim() : request.connection.remoteAddress;
     if (this.ip === '::1' || this.ip === '::ffff:127.0.0.1') {
       this.ip = '127.0.0.1';
     }
   }
+  
 
   _parseDeviceInfo(request) {
     const parser = new UAParser(request.headers['user-agent']);
