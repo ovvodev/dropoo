@@ -18,8 +18,8 @@ The project is on-progres
 - Frontend: Vue.js, Tailwind CSS
 - Backend: Node.js, Express
 - WebRTC: simple-peer
-- WebSocket: socket.io
-- Deployment: Fly.io
+- WebSocket
+- Deployment: Fly.io , Netlify
 
 
 ## Contributing
