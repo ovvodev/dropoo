@@ -1,6 +1,5 @@
 // src/services/peer.js
 
-import io from 'socket.io-client'
 import Peer from 'simple-peer'
 import UAParser from 'ua-parser-js'
 import JSZip from 'jszip'
