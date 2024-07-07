@@ -9,7 +9,7 @@ class PeerService {
     this.socket = null
     this.peers = {}
     this.onPeerConnected = null
-    this.onPeerIdAssigned = null
+    this.onPeerIdAssigned = null 
     this.onPeerDisconnected = null
     this.onFileProgress = null
     this.onFileReceived = null
@@ -19,11 +19,10 @@ class PeerService {
     this.activeTransfers = new Map()
     this.pausedTransfers = new Set()
     this.myPeerId = null
-    this.deviceInfo = null;
+    this.deviceInfo = navigator.userAgentData ? navigator.userAgentData.getHighEntropyValues(['architecture', 'model', 'platform', 'uaFullVersion']) : null;
     this.peerNames = new Map();
     this.myGreekName = null
     this.incomingFolders = {}
-    console.log("Device info:", this.deviceInfo)
   }
   cleanup() {
     console.log('Cleaning up PeerService');
