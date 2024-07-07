@@ -247,11 +247,17 @@ const triggerFileInput = () => {
 
 const onItemsSelected = (event) => {
   const files = Array.from(event.target.files)
+  if (files.length === 0) {
+    addNotification('No files selected', 'error')
+    return
+  }
   selectedFiles.value = files.map(file => ({
     file,
     path: file.webkitRelativePath || file.name
   }))
+  addNotification(`${files.length} file(s) selected`, 'success')
 }
+
 
 const sendFileToAllPeers = async () => {
   for (const peer of otherPeers.value) {
@@ -260,12 +266,16 @@ const sendFileToAllPeers = async () => {
 }
 
 const sendFileToPeer = async (peer) => {
+  if (selectedFiles.value.length === 0) {
+    addNotification('No files selected for transfer', 'error')
+    return
+  }
   if (selectedFiles.value.length > 5) {
     await sendZippedFilesToPeer(peer)
   } else {
     sendIndividualFilesToPeer(peer)
   }
-  addNotification(`Started file transfer to ${peer.name}`)
+  addNotification(`Started file transfer to ${peer.greekName}`)
 }
 
 const sendZippedFilesToPeer = async (peer) => {
@@ -447,12 +457,17 @@ onMounted(() => {
     PeerService.onTransferError = handleTransferError
     PeerService.onTransferCancelled = handleTransferCancelled
     PeerService.onTransferCompleted = handleCompletedTransfer
-    PeerService.onPeerIdAssigned = (peerInfo) => {
-      myPeerId.value = peerInfo.id
-      myGreekName.value = peerInfo.greekName
-      myPeerName.value = PeerService.formatPeerName(PeerService.deviceInfo)
-      updateMyPeerInfo()
-    }
+    PeerService.onPeerIdAssigned = (peerId) => {
+      myPeerId.value = peerId;
+      const peerInfo = PeerService.getMyPeerInfo();
+      myGreekName.value = peerInfo.greekName;
+      myPeerName.value = PeerService.formatPeerName(peerInfo.deviceInfo);
+      myPeer.value = {
+        id: peerId,
+        greekName: peerInfo.greekName,
+        deviceInfo: PeerService.formatPeerName(peerInfo.deviceInfo)
+      };
+    };
   } catch (error) {
     console.error('Error initializing PeerService:', error)
     addNotification('Failed to initialize peer service', 'error')

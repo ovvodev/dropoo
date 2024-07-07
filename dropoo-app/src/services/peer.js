@@ -62,30 +62,37 @@ class PeerService {
   init(serverUrl) {
     console.log('Initializing PeerService with URL:', serverUrl)
     if (this.socket) {
-        this.socket.close()
+      this.socket.close()
     }
-    this.socket = new WebSocket(serverUrl)
-
-    this.socket.onopen = () => {
+    
+    const connect = () => {
+      this.socket = new WebSocket(serverUrl)
+  
+      this.socket.onopen = () => {
         console.log('Connected to signaling server')
         this.socket.send(JSON.stringify({
-            type: 'register'
+          type: 'register'
         }))
-    }
-
-    this.socket.onmessage = (event) => {
+      }
+  
+      this.socket.onmessage = (event) => {
         const data = JSON.parse(event.data)
         this.handleServerMessage(data)
-    }
-
-    this.socket.onerror = (error) => {
+      }
+  
+      this.socket.onerror = (error) => {
         console.error('WebSocket error:', error)
-    }
-
-    this.socket.onclose = (event) => {
+      }
+  
+      this.socket.onclose = (event) => {
         console.log('Disconnected from signaling server:', event.reason)
+        setTimeout(connect, 5000) // Attempt to reconnect after 5 seconds
+      }
     }
-}
+  
+    connect()
+  }
+  
   generatePeerId() {
     return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
       var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
