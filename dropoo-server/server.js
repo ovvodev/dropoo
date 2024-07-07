@@ -28,21 +28,28 @@ class DropooServer {
     }
 
     _onConnection(peer) {
-        console.log('New client connected:', peer.id, 'from IP:', peer.ip);
+        console.log('New client connected:', peer.toString());
         peer.socket.on('message', message => this._onMessage(peer, message));
+        peer.socket.on('error', error => console.error('Socket error:', error));
         peer.socket.on('close', () => this._leaveRoom(peer));
         this._keepAlive(peer);
     }
 
-    _joinRoom(peer) {
-        console.log('Joining room for peer:', peer.id, 'IP:', peer.ip);
-        if (!this._rooms[peer.ip]) {
-            this._rooms[peer.ip] = {};
+    _getRoom(ip) {
+        const subnet = ip.split('.').slice(0, 3).join('.');
+        if (!this._rooms[subnet]) {
+            this._rooms[subnet] = {};
         }
+        return this._rooms[subnet];
+    }
+
+    _joinRoom(peer) {
+        console.log('Joining room for peer:', peer.toString());
+        const room = this._getRoom(peer.ip);
 
         // Notify all other peers in the room
-        for (const otherPeerId in this._rooms[peer.ip]) {
-            const otherPeer = this._rooms[peer.ip][otherPeerId];
+        for (const otherPeerId in room) {
+            const otherPeer = room[otherPeerId];
             this._send(otherPeer, {
                 type: 'peer-joined',
                 peer: peer.getInfo()
@@ -50,29 +57,31 @@ class DropooServer {
         }
 
         // Send the new peer a list of all connected peers in the same room
-        const peerList = Object.values(this._rooms[peer.ip]).map(p => p.getInfo());
+        const peerList = Object.values(room).map(p => p.getInfo());
         this._send(peer, {
             type: 'peers',
             peers: peerList.filter(p => p.id !== peer.id)
         });
 
         // Add peer to room
-        this._rooms[peer.ip][peer.id] = peer;
-        console.log('Room state after join:', JSON.stringify(this._rooms[peer.ip], null, 2));
+        room[peer.id] = peer;
+        console.log('Room state after join:', JSON.stringify(room, null, 2));
     }
 
     _leaveRoom(peer) {
-        console.log('Client disconnected:', peer.id);
-        if (!this._rooms[peer.ip] || !this._rooms[peer.ip][peer.id]) return;
+        console.log('Client disconnected:', peer.toString());
+        const room = this._getRoom(peer.ip);
+        if (!room[peer.id]) return;
 
-        delete this._rooms[peer.ip][peer.id];
+        delete room[peer.id];
+        this._cancelKeepAlive(peer);
 
-        if (Object.keys(this._rooms[peer.ip]).length === 0) {
-            delete this._rooms[peer.ip];
+        if (Object.keys(room).length === 0) {
+            delete this._rooms[peer.ip.split('.').slice(0, 3).join('.')];
         } else {
             // Notify all other peers
-            for (const otherPeerId in this._rooms[peer.ip]) {
-                const otherPeer = this._rooms[peer.ip][otherPeerId];
+            for (const otherPeerId in room) {
+                const otherPeer = room[otherPeerId];
                 this._send(otherPeer, { type: 'peer-left', peerId: peer.id });
             }
         }
@@ -88,7 +97,7 @@ class DropooServer {
         console.log('Received message:', message);
         switch (message.type) {
             case 'register':
-                console.log('Registering peer:', sender.id);
+                console.log('Registering peer:', sender.toString());
                 this._joinRoom(sender);
                 // Send back the peer's info including assigned Greek name and parsed device info
                 this._send(sender, {
@@ -106,8 +115,9 @@ class DropooServer {
     }
 
     _forwardSignal(sender, message) {
-        if (message.to && this._rooms[sender.ip] && this._rooms[sender.ip][message.to]) {
-            const recipient = this._rooms[sender.ip][message.to];
+        const room = this._getRoom(sender.ip);
+        if (message.to && room[message.to]) {
+            const recipient = room[message.to];
             message.from = sender.id;
             this._send(recipient, message);
         }
@@ -120,6 +130,7 @@ class DropooServer {
     }
 
     _keepAlive(peer) {
+        this._cancelKeepAlive(peer);
         const timeout = 30000;
         if (!peer.lastBeat) {
             peer.lastBeat = Date.now();
@@ -131,7 +142,13 @@ class DropooServer {
 
         this._send(peer, { type: 'ping' });
 
-        setTimeout(() => this._keepAlive(peer), timeout);
+        peer.timerId = setTimeout(() => this._keepAlive(peer), timeout);
+    }
+
+    _cancelKeepAlive(peer) {
+        if (peer && peer.timerId) {
+            clearTimeout(peer.timerId);
+        }
     }
 }
 
@@ -143,6 +160,7 @@ class Peer {
         this.deviceInfo = this._parseDeviceInfo(request);
         this.lastBeat = Date.now();
         this.greekName = this._assignGreekName();
+        this.timerId = 0;
     }
 
     _setIP(request) {
@@ -152,6 +170,7 @@ class Peer {
             this.ip = '127.0.0.1';
         }
     }
+
     _parseDeviceInfo(request) {
         const parser = new UAParser(request.headers['user-agent']);
         const result = parser.getResult();
@@ -162,6 +181,7 @@ class Peer {
             browser: result.browser.name || 'Unknown Browser'
         };
     }
+
     _assignGreekName() {
         const hash = this._hashCode(this.id);
         const index = Math.abs(hash) % greekNames.length;
@@ -184,6 +204,10 @@ class Peer {
             deviceInfo: this.deviceInfo,
             greekName: this.greekName
         };
+    }
+
+    toString() {
+        return `<Peer id=${this.id} ip=${this.ip} greekName=${this.greekName}>`;
     }
 
     static uuid() {
