@@ -66,6 +66,7 @@ class PeerService {
     }
     
     const connect = () => {
+      console.log('Attempting to connect to WebSocket server...')
       this.socket = new WebSocket(serverUrl)
   
       this.socket.onopen = () => {
@@ -89,6 +90,11 @@ class PeerService {
         setTimeout(connect, 5000) // Attempt to reconnect after 5 seconds
       }
     }
+    setInterval(() => {
+      if (this.socket.readyState === WebSocket.OPEN) {
+        this.socket.send(JSON.stringify({ type: 'ping' }))
+      }
+    }, 30000) // Send a ping every 30 seconds
   
     connect()
   }
@@ -100,6 +106,7 @@ class PeerService {
     });
   }
   handleServerMessage(data) {
+    console.log('Received message from server:', data)
     switch(data.type) {
         case 'peer-info':
             console.log('Received peer info:', data.peer)
@@ -127,23 +134,25 @@ class PeerService {
                 this.peers[data.from].signal(data.signal)
             }
             break
+        default:
+        console.warn('Received unknown message type:', data.type)
     }
   }
 
   createPeer(peerId, initiator, deviceInfo, greekName) {
-  if (this.peers[peerId]) {
-      console.log('Peer already exists:', peerId)
-      return
-  }
-  console.log('Creating peer:', peerId, 'initiator:', initiator)
-  const peer = new Peer({ initiator })
+    console.log('Creating peer:', { peerId, initiator, deviceInfo, greekName })
+    if (this.peers[peerId]) {
+        console.log('Peer already exists:', peerId)
+        return
+    }
+    const peer = new Peer({ initiator })
 
-  peer.on('signal', (signal) => {
-      this.socket.send(JSON.stringify({
-          type: 'signal',
-          to: peerId,
-          signal: signal
-      }))
+    peer.on('signal', (signal) => {
+        this.socket.send(JSON.stringify({
+            type: 'signal',
+            to: peerId,
+            signal: signal
+        }))
   })
 
   peer.on('connect', () => {
