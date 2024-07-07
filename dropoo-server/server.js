@@ -3,6 +3,7 @@ const http = require('http');
 const WebSocket = require('ws');
 const cors = require('cors');
 const parser = require('ua-parser-js');
+const { greekNames } = require('./constants');
 
 class DropooServer {
     constructor(port) {
@@ -15,7 +16,6 @@ class DropooServer {
 
         this.server = http.createServer(this.app);
         this.wss = new WebSocket.Server({ server: this.server });
-
         this._rooms = {};
 
         this.wss.on('connection', (socket, request) => this._onConnection(new Peer(socket, request)));
@@ -35,10 +35,10 @@ class DropooServer {
     }
 
     _joinRoom(peer) {
-      console.log('Joining room for peer:', peer.id, 'IP:', peer.ip);
-      if (!this._rooms[peer.ip]) {
-        this._rooms[peer.ip] = {};
-      }
+        console.log('Joining room for peer:', peer.id, 'IP:', peer.ip);
+        if (!this._rooms[peer.ip]) {
+            this._rooms[peer.ip] = {};
+        }
 
         // Notify all other peers in the room
         for (const otherPeerId in this._rooms[peer.ip]) {
@@ -65,10 +65,8 @@ class DropooServer {
         console.log('Client disconnected:', peer.id);
         if (!this._rooms[peer.ip] || !this._rooms[peer.ip][peer.id]) return;
 
-        // Delete the peer
         delete this._rooms[peer.ip][peer.id];
 
-        // If room is empty, delete the room
         if (Object.keys(this._rooms[peer.ip]).length === 0) {
             delete this._rooms[peer.ip];
         } else {
@@ -80,31 +78,32 @@ class DropooServer {
         }
     }
 
-      _onMessage(sender, message) {
+    _onMessage(sender, message) {
         try {
-          message = JSON.parse(message);
+            message = JSON.parse(message);
         } catch (e) {
-          console.error('Failed to parse message:', message);
-          return; // Ignore malformed JSON
+            console.error('Failed to parse message:', message);
+            return; // Ignore malformed JSON
         }
-      
         console.log('Received message:', message);
-      
         switch (message.type) {
-          case 'register':
-            console.log('Registering peer:', sender.id, 'with device info:', message.deviceInfo);
-            sender.deviceInfo = message.deviceInfo;
-            this._joinRoom(sender);
-            break;
-          case 'signal':
-            this._forwardSignal(sender, message);
-            break;
-          case 'pong':
-            sender.lastBeat = Date.now();
-            break;
+            case 'register':
+                console.log('Registering peer:', sender.id);
+                this._joinRoom(sender);
+                // Send back the peer's info including assigned Greek name and parsed device info
+                this._send(sender, {
+                    type: 'peer-info',
+                    peer: sender.getInfo()
+                });
+                break;
+            case 'signal':
+                this._forwardSignal(sender, message);
+                break;
+            case 'pong':
+                sender.lastBeat = Date.now();
+                break;
         }
-      }
-    
+    }
 
     _forwardSignal(sender, message) {
         if (message.to && this._rooms[sender.ip] && this._rooms[sender.ip][message.to]) {
@@ -141,8 +140,9 @@ class Peer {
         this.socket = socket;
         this.id = Peer.uuid();
         this._setIP(request);
-        this.deviceInfo = null; // Will be set when 'register' message is received
+        this.deviceInfo = this._parseDeviceInfo(request);
         this.lastBeat = Date.now();
+        this.greekName = this._assignGreekName();
     }
 
     _setIP(request) {
@@ -152,11 +152,37 @@ class Peer {
             this.ip = '127.0.0.1';
         }
     }
+    _parseDeviceInfo(request) {
+        const parser = new UAParser(request.headers['user-agent']);
+        const result = parser.getResult();
+        return {
+            os: result.os.name || 'Unknown OS',
+            type: result.device.type || 'Desktop',
+            model: result.device.model || '',
+            browser: result.browser.name || 'Unknown Browser'
+        };
+    }
+    _assignGreekName() {
+        const hash = this._hashCode(this.id);
+        const index = Math.abs(hash) % greekNames.length;
+        return greekNames[index];
+    }
+
+    _hashCode(str) {
+        let hash = 0;
+        for (let i = 0; i < str.length; i++) {
+            const char = str.charCodeAt(i);
+            hash = ((hash << 5) - hash) + char;
+            hash = hash & hash; // Convert to 32bit integer
+        }
+        return hash;
+    }
 
     getInfo() {
         return {
             id: this.id,
-            deviceInfo: this.deviceInfo
+            deviceInfo: this.deviceInfo,
+            greekName: this.greekName
         };
     }
 

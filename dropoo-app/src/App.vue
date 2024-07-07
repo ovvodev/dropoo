@@ -447,10 +447,10 @@ onMounted(() => {
     PeerService.onTransferError = handleTransferError
     PeerService.onTransferCancelled = handleTransferCancelled
     PeerService.onTransferCompleted = handleCompletedTransfer
-    PeerService.onPeerIdAssigned = (peerId) => {
-      myPeerId.value = peerId
-      myGreekName.value = PeerService.myGreekName
-      myPeerName.value = `${PeerService.formatPeerName(PeerService.deviceInfo)}`
+    PeerService.onPeerIdAssigned = (peerInfo) => {
+      myPeerId.value = peerInfo.id
+      myGreekName.value = peerInfo.greekName
+      myPeerName.value = PeerService.formatPeerName(PeerService.deviceInfo)
       updateMyPeerInfo()
     }
   } catch (error) {
@@ -458,7 +458,6 @@ onMounted(() => {
     addNotification('Failed to initialize peer service', 'error')
   }
 })
-
 watch(isDarkTheme, applyTheme)
 
 onBeforeUnmount(() => {
