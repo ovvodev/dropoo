@@ -144,7 +144,7 @@
 
   <!-- Footer -->
   <footer class="w-full flex flex-col items-center font-mono bg-primary dark:bg-gray-800 text-primary dark:text-gray-300 relative text-xs mb-2">
-    <p class="mb-2">Created with: Vue.js, WebRTC, Socket.io, Tailwind CSS</p>
+    <p class="mb-2">Created with: Vue.js, WebRTC, WebSocket, Tailwind CSS</p>
     <p>
       Created by
       <a href="https://github.com/ovvodev" target="_blank" rel="noopener noreferrer" class="text-blue-600 dark:text-blue-400 hover:underline">
