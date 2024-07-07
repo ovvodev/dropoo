@@ -73,7 +73,13 @@ class PeerService {
       browser: result.browser.name || 'Unknown Browser'
     }
   }
-  
+  getMyPeerInfo() {
+    return {
+      id: this.myPeerId,
+      greekName: this.myGreekName,
+      deviceInfo: this.formatPeerName(this.deviceInfo)
+    };
+  }
   formatPeerName(deviceInfo) {
     return `${deviceInfo.os} ${deviceInfo.type} (${deviceInfo.browser})`;
   }
@@ -86,12 +92,17 @@ class PeerService {
 
     this.socket.onopen = () => {
       console.log('Connected to signaling server');
+      this.myPeerId = this.generatePeerId(); 
+      this.myGreekName = this.getGreekName(this.myPeerId);
       this.socket.send(JSON.stringify({
         type: 'register',
-        deviceInfo: this.deviceInfo
+        deviceInfo: this.deviceInfo,
+        peerId: this.myPeerId
       }));
+      if (this.onPeerIdAssigned) {
+        this.onPeerIdAssigned(this.myPeerId);
+      }
     };
-
     this.socket.onmessage = (event) => {
       const data = JSON.parse(event.data);
       this.handleServerMessage(data);
@@ -104,10 +115,19 @@ class PeerService {
     this.socket.onclose = (event) => {
       console.log('Disconnected from signaling server:', event.reason);
     };
+    generatePeerId() {
+      return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+        var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+      });
+    }
   }
 
   handleServerMessage(data) {
     switch(data.type) {
+      case 'registered':
+        console.log('Successfully registered with server');
+        break;
       case 'peers':
         console.log('Received list of peers:', data.peers);
         data.peers.forEach(peer => this.createPeer(peer.id, true, peer.deviceInfo));
@@ -148,19 +168,14 @@ class PeerService {
       console.log('Connected to peer:', peerId);
       if (this.onPeerConnected) {
         const greekName = this.getGreekName(peerId)
-        this.onPeerConnected({ 
-          id: peerId, 
-          greekName: greekName, 
-          deviceInfo: this.formatPeerName(deviceInfo) 
-        })
         const formattedDeviceInfo = this.formatPeerName(deviceInfo);
-        this.onPeerConnected({ 
-          id: peerId, 
-          greekName: greekName, 
-          deviceInfo: formattedDeviceInfo 
-        })
+        this.onPeerConnected({
+          id: peerId,
+          greekName: greekName,
+          deviceInfo: formattedDeviceInfo
+        });
       }
-    })
+    });
     
     peer.on('data', (data) => {
       this.handleIncomingData(peerId, data)

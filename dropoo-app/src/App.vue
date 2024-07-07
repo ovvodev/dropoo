@@ -36,9 +36,9 @@
     <div class="w-full max-w-md mb-6">
       <h2 class="text-2xl font-semibold mb-4 text-center dark:text-white">Me</h2>
       <div class="border border-gray-200 dark:border-gray-700 p-4 pt-8 pb-8 pl-10 rounded-lg shadow-md relative overflow-visible bg-gray-50 dark:bg-gray-700">
-        <RandomAvatar v-if="myPeerId" :seed="myPeerId" :size="170" />
-        <strong class="text-lg block mb-2 ml-16 dark:text-white">{{ myGreekName }}</strong>
-        <p class="text-xs ml-16 mb-4 inline-block dark:text-gray-300">{{ myPeerName || 'Connecting...' }}</p>
+        <RandomAvatar v-if="myPeer" :seed="myPeer.id" :size="170" />
+        <strong class="text-lg block mb-2 ml-16 dark:text-white">{{ myPeer ? myPeer.greekName : 'Connecting...' }}</strong>
+        <p class="text-xs ml-16 mb-4 inline-block dark:text-gray-300">{{ myPeer ? myPeer.deviceInfo : 'Connecting...' }}</p>
 
         <!-- Received Files -->
         <div v-if="receivedFiles.length" class="mt-6">
@@ -183,6 +183,7 @@ const transfers = ref([])
 const receivedFiles = ref([])
 const errors = ref([])
 const isZipping = ref(false)
+const myPeer = ref(null)
 const myPeerId = ref(null)
 const myPeerName = ref('')
 const myGreekName = ref('')
@@ -231,6 +232,13 @@ const addPeer = (peer) => {
   // Remove any duplicates
   peers.value = Array.from(new Set(peers.value.map(p => JSON.stringify(p))))
     .map(p => JSON.parse(p))
+}
+const updateMyPeerInfo = () => {
+  myPeer.value = {
+    id: myPeerId.value,
+    greekName: myGreekName.value,
+    deviceInfo: myPeerName.value
+  }
 }
 
 const triggerFileInput = () => {
@@ -443,6 +451,7 @@ onMounted(() => {
       myPeerId.value = peerId
       myGreekName.value = PeerService.myGreekName
       myPeerName.value = `${PeerService.formatPeerName(PeerService.deviceInfo)}`
+      updateMyPeerInfo()
     }
   } catch (error) {
     console.error('Error initializing PeerService:', error)

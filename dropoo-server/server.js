@@ -35,9 +35,10 @@ class DropooServer {
     }
 
     _joinRoom(peer) {
-        if (!this._rooms[peer.ip]) {
-            this._rooms[peer.ip] = {};
-        }
+      console.log('Joining room for peer:', peer.id, 'IP:', peer.ip);
+      if (!this._rooms[peer.ip]) {
+        this._rooms[peer.ip] = {};
+      }
 
         // Notify all other peers in the room
         for (const otherPeerId in this._rooms[peer.ip]) {
@@ -57,6 +58,7 @@ class DropooServer {
 
         // Add peer to room
         this._rooms[peer.ip][peer.id] = peer;
+        console.log('Room state after join:', JSON.stringify(this._rooms[peer.ip], null, 2));
     }
 
     _leaveRoom(peer) {
@@ -78,26 +80,31 @@ class DropooServer {
         }
     }
 
-    _onMessage(sender, message) {
+      _onMessage(sender, message) {
         try {
-            message = JSON.parse(message);
+          message = JSON.parse(message);
         } catch (e) {
-            return; // Ignore malformed JSON
+          console.error('Failed to parse message:', message);
+          return; // Ignore malformed JSON
         }
-
+      
+        console.log('Received message:', message);
+      
         switch (message.type) {
-            case 'register':
-                sender.deviceInfo = message.deviceInfo;
-                this._joinRoom(sender);
-                break;
-            case 'signal':
-                this._forwardSignal(sender, message);
-                break;
-            case 'pong':
-                sender.lastBeat = Date.now();
-                break;
+          case 'register':
+            console.log('Registering peer:', sender.id, 'with device info:', message.deviceInfo);
+            sender.deviceInfo = message.deviceInfo;
+            this._joinRoom(sender);
+            break;
+          case 'signal':
+            this._forwardSignal(sender, message);
+            break;
+          case 'pong':
+            sender.lastBeat = Date.now();
+            break;
         }
-    }
+      }
+    
 
     _forwardSignal(sender, message) {
         if (message.to && this._rooms[sender.ip] && this._rooms[sender.ip][message.to]) {
