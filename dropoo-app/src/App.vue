@@ -233,13 +233,7 @@ const addPeer = (peer) => {
   peers.value = Array.from(new Set(peers.value.map(p => JSON.stringify(p))))
     .map(p => JSON.parse(p))
 }
-const updateMyPeerInfo = () => {
-  myPeer.value = {
-    id: myPeerId.value,
-    greekName: myGreekName.value,
-    deviceInfo: myPeerName.value
-  }
-}
+
 
 const triggerFileInput = () => {
   document.querySelector('input[type="file"]').click()
