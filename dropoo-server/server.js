@@ -2,7 +2,7 @@ const express = require('express');
 const http = require('http');
 const WebSocket = require('ws');
 const cors = require('cors');
-const parser = require('ua-parser-js');
+const UAParser = require('ua-parser-js');
 const { greekNames } = require('./constants');
 
 class DropooServer {
