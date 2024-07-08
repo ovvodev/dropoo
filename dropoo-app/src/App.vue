@@ -30,7 +30,7 @@
     </div>
 
     <!-- Header -->
-    <h1 class="text-3xl font-semibold mb-10 dark:text-white">Droppo</h1>
+    <h1 class="text-3xl font-semibold mb-10 dark:text-white">Dropoo</h1>
 
     <!-- Me Section -->
     <div class="w-full max-w-md mb-6">
