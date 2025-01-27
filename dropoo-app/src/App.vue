@@ -438,6 +438,12 @@ const handleError = (peerId, fileName, message) => {
 // Lifecycle hooks
 onMounted(() => {
   console.log('App mounted, initializing PeerService')
+  const umamiScript = document.createElement('script')
+  umamiScript.async = true
+  umamiScript.defer = true
+  umamiScript.setAttribute('data-website-id', '1be950bc-ffb5-4890-a648-b6f50501edb6')
+  umamiScript.src = 'https://your-umami-server/umami.js'
+  document.head.appendChild(umamiScript)
   const savedTheme = localStorage.getItem('theme')
   isDarkTheme.value = savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)
   applyTheme()
